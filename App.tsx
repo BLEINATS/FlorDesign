@@ -5,105 +5,108 @@ import EditScreen from './components/EditScreen';
 import ResultScreen from './components/ResultScreen';
 import ProjectsScreen from './components/ProjectsScreen';
 import ProjectDetailScreen from './components/ProjectDetailScreen';
-import { generateImage } from './services/geminiService';
 import useLocalStorage from './hooks/useLocalStorage';
-import { Project, ImageData } from './types';
+import { Project, ImageData, EditMode } from './types';
+import { generateImage, describeImage } from './services/geminiService';
 
 type Screen = 'upload' | 'edit' | 'result' | 'projects' | 'projectDetail';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('upload');
-  const [originalImage, setOriginalImage] = useState<{ raw: ImageData, url: string } | null>(null);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [projects, setProjects] = useLocalStorage<Project[]>('flora-design-projects', []);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [currentImageData, setCurrentImageData] = useState<ImageData | null>(null);
+  const [generatedImageData, setGeneratedImageData] = useState<ImageData | null>(null);
+  const [prompt, setPrompt] = useState<string>('');
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleImageUpload = (imageData: ImageData) => {
-    setOriginalImage({ raw: imageData, url: `data:${imageData.mimeType};base64,${imageData.data}` });
-    setScreen('edit');
+    setCurrentImageData(imageData);
+    setGeneratedImageData(null);
+    setPrompt('');
     setError(null);
+    setScreen('edit');
   };
 
-  const handleGenerate = async (newPrompt: string) => {
-    if (!originalImage) return;
-
+  const handleGenerate = async (newPrompt: string, mode: EditMode, isHighQuality: boolean) => {
+    if (!currentImageData) return;
     setIsLoading(true);
     setError(null);
     setPrompt(newPrompt);
-
     try {
-      const resultImageUrl = await generateImage(originalImage.raw, newPrompt);
-      setGeneratedImageUrl(resultImageUrl);
+      const result = await generateImage(currentImageData, newPrompt, mode, isHighQuality);
+      setGeneratedImageData(result);
       setScreen('result');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-      // Stay on the edit screen to allow retry
+    } catch (e: any) {
+      setError(e.message || 'Ocorreu um erro desconhecido.');
+      // Stay on 'edit' screen to show error
     } finally {
       setIsLoading(false);
     }
   };
 
-  const resetToUpload = () => {
-    setOriginalImage(null);
-    setGeneratedImageUrl(null);
-    setPrompt('');
+  const handleDescribe = async (): Promise<string | undefined> => {
+    if (!currentImageData) return '';
+    setIsLoading(true);
     setError(null);
-    setScreen('upload');
-  };
+    try {
+        const description = await describeImage(currentImageData);
+        return description;
+    } catch (e: any) {
+        setError(e.message || 'Falha ao gerar descrição.');
+    } finally {
+        setIsLoading(false);
+    }
+    return '';
+  }
 
   const handleSaveProject = () => {
-    if (!originalImage || !generatedImageUrl) return;
-    setIsSaving(true);
+    if (!currentImageData || !generatedImageData || !prompt) return;
+    
+    const originalImageUrl = `data:${currentImageData.mimeType};base64,${currentImageData.data}`;
+    const generatedImageUrl = `data:${generatedImageData.mimeType};base64,${generatedImageData.data}`;
+
     const newProject: Project = {
-      id: new Date().toISOString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       prompt,
-      originalImageUrl: originalImage.url,
+      originalImageUrl,
       generatedImageUrl,
       createdAt: new Date().toISOString(),
     };
     setProjects(prevProjects => [newProject, ...prevProjects]);
-    setTimeout(() => {
-        setIsSaving(false);
-        alert('Projeto salvo com sucesso!');
-        setScreen('projects');
-    }, 500);
-  };
-  
-  const handleViewProjects = () => {
     setScreen('projects');
-  };
-  
-  const handleNewProject = () => {
-      resetToUpload();
   };
 
   const handleDeleteProject = (id: string) => {
-      setProjects(projects.filter(p => p.id !== id));
+    setProjects(projects.filter(p => p.id !== id));
   };
   
-  const handleViewProjectDetail = (id: string) => {
-      setSelectedProjectId(id);
-      setScreen('projectDetail');
+  const handleViewProject = (id: string) => {
+    const project = projects.find(p => p.id === id);
+    if (project) {
+        setCurrentProject(project);
+        setScreen('projectDetail');
+    }
   };
 
-  const handleBackToProjects = () => {
-    setSelectedProjectId(null);
-    setScreen('projects');
+  const handleNewProject = () => {
+    setCurrentImageData(null);
+    setGeneratedImageData(null);
+    setPrompt('');
+    setError(null);
+    setCurrentProject(null);
+    setScreen('upload');
   };
-  
+
   const handleEditAgain = () => {
-      if(generatedImageUrl) {
-          const base64Data = generatedImageUrl.split(',')[1];
-          // We don't know the exact mime type from the data URL, but png is a safe bet for generated images
-          const newOriginal: ImageData = { data: base64Data, mimeType: 'image/png' };
-          setOriginalImage({raw: newOriginal, url: generatedImageUrl });
-          setGeneratedImageUrl(null);
-          setScreen('edit');
-      }
+    if (generatedImageData) {
+        setCurrentImageData(generatedImageData);
+        setGeneratedImageData(null);
+        setPrompt('');
+        setError(null);
+        setScreen('edit');
+    }
   };
 
   const renderScreen = () => {
@@ -111,36 +114,42 @@ function App() {
       case 'upload':
         return <UploadScreen onImageUpload={handleImageUpload} isLoading={isLoading} />;
       case 'edit':
-        if (!originalImage) {
-            resetToUpload();
-            return null;
+        if (!currentImageData) {
+          handleNewProject();
+          return null;
         }
-        return <EditScreen imageUrl={originalImage.url} onGenerate={handleGenerate} isLoading={isLoading} onBack={resetToUpload} />;
+        return (
+          <EditScreen
+            originalImage={currentImageData}
+            onGenerate={handleGenerate}
+            onGetInspiration={handleDescribe}
+            isLoading={isLoading}
+            error={error}
+          />
+        );
       case 'result':
-        if (!originalImage || !generatedImageUrl) {
-            resetToUpload();
-            return null;
+        if (!currentImageData || !generatedImageData) {
+          handleNewProject();
+          return null;
         }
         return (
           <ResultScreen
-            originalImageUrl={originalImage.url}
-            generatedImageUrl={generatedImageUrl}
+            originalImage={currentImageData}
+            generatedImage={generatedImageData}
             prompt={prompt}
             onSave={handleSaveProject}
-            onEdit={handleEditAgain}
-            onRestart={resetToUpload}
-            isSaving={isSaving}
+            onRestart={handleNewProject}
+            onEditAgain={handleEditAgain}
           />
         );
       case 'projects':
-          return <ProjectsScreen projects={projects} onViewProject={handleViewProjectDetail} onDeleteProject={handleDeleteProject} onNewProject={handleNewProject}/>;
+        return <ProjectsScreen projects={projects} onViewProject={handleViewProject} onDeleteProject={handleDeleteProject} onNewProject={handleNewProject} />;
       case 'projectDetail':
-          const project = projects.find(p => p.id === selectedProjectId);
-          if(!project) {
-              handleBackToProjects();
-              return null;
-          }
-          return <ProjectDetailScreen project={project} onBack={handleBackToProjects} />;
+        if (!currentProject) {
+            setScreen('projects');
+            return null;
+        }
+        return <ProjectDetailScreen project={currentProject} onBack={() => setScreen('projects')} />;
       default:
         return <UploadScreen onImageUpload={handleImageUpload} isLoading={isLoading} />;
     }
@@ -148,14 +157,10 @@ function App() {
 
   return (
     <div className="bg-rose-50 min-h-screen font-sans text-gray-800">
-      <Header onViewProjects={handleViewProjects} onNewProject={handleNewProject} />
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && <div className="max-w-3xl mx-auto mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center">{error}</div>}
+      <Header onViewProjects={() => setScreen('projects')} onNewProject={handleNewProject} />
+      <main className="py-8 px-4 sm:px-6 lg:px-8">
         {renderScreen()}
       </main>
-      <footer className="text-center py-6 text-gray-500 text-sm">
-        <p>Criado com 🌸 por FloraDesign AI</p>
-      </footer>
     </div>
   );
 }

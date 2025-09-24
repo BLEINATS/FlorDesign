@@ -10,3 +10,5 @@ export interface ImageData {
   data: string;
   mimeType: string;
 }
+
+export type EditMode = 'edit' | 'create';
