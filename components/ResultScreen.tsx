@@ -25,18 +25,20 @@ const ResultScreen: React.FC<ResultScreenProps> = ({
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = generatedImageUrl;
-    link.download = `floradesign-ai-${prompt.slice(0, 20).replace(/\s/g, '_')}.png`;
+    const safePrompt = prompt.slice(0, 30).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    link.download = `floradesign-ai-${safePrompt || 'imagem'}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+  
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-12">
-        <h2 className="text-4xl font-serif text-pink-800">Sua criação! ✨</h2>
+        <h2 className="text-4xl font-serif text-pink-800">Sua Visão, Florescida! ✨</h2>
         <p className="mt-3 text-lg text-gray-600 max-w-3xl mx-auto">
-          Com base no seu comando: <span className="font-semibold text-pink-700">"{prompt}"</span>
+          Baseado na sua instrução: <span className="font-semibold text-pink-700">"{prompt}"</span>
         </p>
       </div>
 
@@ -54,13 +56,6 @@ const ResultScreen: React.FC<ResultScreenProps> = ({
             <h3 className="text-2xl font-serif text-pink-800 mb-4">Depois</h3>
             <div className="relative aspect-square bg-white rounded-xl shadow-lg overflow-hidden border-4 border-pink-400">
                 <img src={generatedImageUrl} alt={prompt} className="w-full h-full object-contain" />
-                <button
-                    onClick={handleDownload}
-                    className="absolute top-3 right-3 p-2 bg-black/40 text-white rounded-full hover:bg-pink-600 transition-colors"
-                    title="Baixar imagem"
-                >
-                    <DownloadIcon className="h-6 w-6" />
-                </button>
             </div>
         </div>
       </div>
@@ -75,18 +70,25 @@ const ResultScreen: React.FC<ResultScreenProps> = ({
           <span>Salvar Projeto</span>
         </button>
         <button
-          onClick={onEditAgain}
+          onClick={handleDownload}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white text-pink-700 font-semibold border-2 border-pink-600 rounded-lg hover:bg-rose-100 transition-colors"
         >
+          <DownloadIcon className="h-5 w-5" />
+          <span>Baixar Imagem</span>
+        </button>
+        <button
+          onClick={onEditAgain}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white text-gray-700 font-semibold border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+        >
           <EditIcon className="h-5 w-5" />
-          <span>Continuar Editando</span>
+          <span>Editar Novamente</span>
         </button>
         <button
           onClick={onRestart}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 text-gray-600 font-medium rounded-lg hover:bg-gray-200 transition-colors"
         >
           <RestartIcon className="h-5 w-5" />
-          <span>Começar de Novo</span>
+          <span>Novo Projeto</span>
         </button>
       </div>
     </div>

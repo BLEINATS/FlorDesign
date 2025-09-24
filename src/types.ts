@@ -3,7 +3,7 @@ export interface ImageData {
   mimeType: string;
 }
 
-export type EditMode = 'edit' | 'create' | 'humanize';
+export type EditMode = 'edit' | 'create';
 
 export interface Project {
   id: string;
@@ -13,4 +13,5 @@ export interface Project {
   createdAt: string; // ISO string date
 }
 
+// FIX: Added Screen type to resolve type errors in App.tsx
 export type Screen = 'landing' | 'upload' | 'edit' | 'result' | 'projects' | 'projectDetail';

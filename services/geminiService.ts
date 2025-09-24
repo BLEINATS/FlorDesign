@@ -11,11 +11,16 @@ const imageEditModel = 'gemini-2.5-flash-image-preview';
 const textModel = 'gemini-2.5-flash';
 
 const getSystemInstruction = (mode: EditMode): string => {
-  if (mode === 'edit') {
-    return `Você é uma IA especialista em paisagismo e design floral para eventos como festas, buffets, casamentos, aniversários e festas de debutantes. Sua especialidade é harmonizar espaços usando flores. Como um assistente de edição de fotos de alta precisão, sua única tarefa é aplicar as edições solicitadas. Mantenha 100% da imagem original intacta, exceto pelas áreas especificamente mencionadas no comando. Não adicione, remova ou altere NADA que não tenha sido explicitamente pedido. Priorize o fotorrealismo, a iluminação consistente e as sombras corretas.`;
+  switch (mode) {
+    case 'edit':
+      return `Você é uma IA especialista em paisagismo e design floral para eventos como festas, buffets, casamentos, aniversários e festas de debutantes. Sua especialidade é harmonizar espaços usando flores. Como um assistente de edição de fotos de alta precisão, sua única tarefa é aplicar as edições solicitadas. Mantenha 100% da imagem original intacta, exceto pelas áreas especificamente mencionadas no comando. Não adicione, remova ou altere NADA que não tenha sido explicitamente pedido. Priorize o fotorrealismo, a iluminação consistente e as sombras corretas.`;
+    case 'create':
+      return `Você é um assistente de design de interiores e eventos. Sua tarefa é adicionar de forma fotorrealista os objetos descritos no prompt à imagem fornecida. Integre os novos elementos perfeitamente, prestando atenção à perspectiva, escala, iluminação e sombras da cena original. Não altere os elementos que já existem na imagem original. Se o prompt for complexo, tente posicionar os múltiplos itens de forma lógica no espaço.`;
+    case 'humanize':
+      return `Você é uma IA especialista em arquitetura e design de interiores. Sua tarefa é transformar a imagem de uma planta baixa 2D em uma visualização 3D fotorrealista e humanizada, vista de uma perspectiva isométrica ou superior. Adicione mobília, texturas, iluminação e decoração apropriadas para o tipo de espaço descrito no comando do usuário. O resultado deve ser uma imagem atraente e fácil de entender. Priorize o fotorrealismo e a coerência do design.`;
+    default:
+      return '';
   }
-  // mode === 'create'
-  return `Você é um assistente de design de interiores e eventos. Sua tarefa é adicionar de forma fotorrealista os objetos descritos no prompt à imagem fornecida. Integre os novos elementos perfeitamente, prestando atenção à perspectiva, escala, iluminação e sombras da cena original. Não altere os elementos que já existem na imagem original. Se o prompt for complexo, tente posicionar os múltiplos itens de forma lógica no espaço.`;
 };
 
 export const generateImage = async (
@@ -75,7 +80,8 @@ export const generateImage = async (
 
 export const describeImage = async (imageData: ImageData): Promise<string> => {
     try {
-        const response = await ai.models.generateContent({
+        // FIX: Add GenerateContentResponse type annotation for better type safety.
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model: textModel,
             contents: {
                 parts: [
@@ -89,7 +95,8 @@ export const describeImage = async (imageData: ImageData): Promise<string> => {
                 ]
             }
         });
-        return response.text.trim();
+        // FIX: Use response.text directly as per guidelines.
+        return response.text;
     } catch(error: any) {
         console.error("Error describing image:", error);
         if (error.message && error.message.includes('429')) {

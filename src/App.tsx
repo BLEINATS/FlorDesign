@@ -9,7 +9,7 @@ import ProjectsScreen from './components/ProjectsScreen';
 import ProjectDetailScreen from './components/ProjectDetailScreen';
 import useLocalStorage from './hooks/useLocalStorage';
 import { generateImage, describeImage } from './services/geminiService';
-// FIX: Imported Screen type to resolve type errors for the 'screen' state variable.
+// FIX: Imported Screen type to resolve multiple type errors related to the 'screen' state variable.
 import { ImageData, EditMode, Project, Screen } from './types';
 
 const App: React.FC = () => {

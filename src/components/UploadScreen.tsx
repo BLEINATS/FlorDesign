@@ -1,17 +1,17 @@
 import React, { useState, ChangeEvent } from 'react';
-// FIX: Import Project type for use in props.
+// FIX: Import Project type to use in props
 import { ImageData, Project } from '../types';
 
 interface UploadScreenProps {
   onImageUpload: (imageData: ImageData) => void;
   isLoading: boolean;
-  // FIX: Added missing props to match what's passed from App.tsx.
+  // FIX: Added missing props to match what's passed from App.tsx
   projects: Project[];
   onViewProject: (id: string) => void;
   onNewProject: () => void;
 }
 
-const UploadScreen: React.FC<UploadScreenProps> = ({ onImageUpload, isLoading, projects, onViewProject, onNewProject }) => {
+const UploadScreen: React.FC<UploadScreenProps> = ({ onImageUpload, isLoading, projects, onViewProject }) => {
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -100,7 +100,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({ onImageUpload, isLoading, p
         </div>
       )}
       {error && <p className="mt-4 text-red-600 bg-red-100 p-3 rounded-lg">{error}</p>}
-      
+
       {projects && projects.length > 0 && (
           <div className="mt-16">
               <h3 className="text-2xl font-serif text-pink-800 mb-6">Ou continue um projeto recente</h3>
