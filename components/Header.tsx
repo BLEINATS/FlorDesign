@@ -1,21 +1,35 @@
-
 import React from 'react';
 
 interface HeaderProps {
-  onNewProject: () => void;
   onViewProjects: () => void;
+  onNewProject: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNewProject, onViewProjects }) => {
+const Header: React.FC<HeaderProps> = ({ onViewProjects, onNewProject }) => {
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-sm p-4 z-50 flex justify-between items-center">
-      <h1 onClick={onNewProject} className="text-2xl font-serif text-pink-800 cursor-pointer">
-        FloraDesign AI
-      </h1>
-      <nav className="flex items-center space-x-4">
-        <button onClick={onNewProject} className="text-gray-600 hover:text-pink-600 transition-colors">New Project</button>
-        <button onClick={onViewProjects} className="text-gray-600 hover:text-pink-600 transition-colors">My Projects</button>
-      </nav>
+    <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 shadow-sm mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center py-4">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={onNewProject}>
+            <span className="text-3xl">🌸</span>
+            <h1 className="text-2xl font-serif font-bold text-pink-800">FloraDesign AI</h1>
+          </div>
+          <nav className="flex items-center gap-4">
+            <button
+              onClick={onViewProjects}
+              className="px-4 py-2 text-pink-700 font-medium rounded-md hover:bg-rose-100 transition-colors"
+            >
+              Meus Projetos
+            </button>
+            <button
+              onClick={onNewProject}
+              className="px-4 py-2 bg-pink-600 text-white font-medium rounded-md hover:bg-pink-700 transition-colors"
+            >
+              + Novo Projeto
+            </button>
+          </nav>
+        </div>
+      </div>
     </header>
   );
 };

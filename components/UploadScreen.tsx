@@ -1,66 +1,68 @@
 
-import React, { useRef } from 'react';
-import Spinner from './Spinner';
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { UploadIcon } from './icons';
 
 interface UploadScreenProps {
-  onImageUpload: (file: File) => void;
+  onImageUpload: (imageData: { data: string; mimeType: string }) => void;
   isLoading: boolean;
 }
 
-const UploadIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-pink-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-    </svg>
-);
-
-
 const UploadScreen: React.FC<UploadScreenProps> = ({ onImageUpload, isLoading }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      onImageUpload(file);
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setError(null);
+    if (acceptedFiles.length > 0) {
+      const file = acceptedFiles[0];
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor, envie um arquivo de imagem válido (PNG, JPG, etc.).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onabort = () => console.log('file reading was aborted');
+      reader.onerror = () => console.log('file reading has failed');
+      reader.onload = () => {
+        const binaryStr = reader.result as string;
+        onImageUpload({ data: binaryStr.split(',')[1], mimeType: file.type });
+      };
+      reader.readAsDataURL(file);
     }
-  };
+  }, [onImageUpload]);
 
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': ['.jpeg', '.png', '.gif', '.webp'] },
+    multiple: false,
+  });
 
   return (
-    <div className="flex flex-col items-center justify-center text-center max-w-2xl mx-auto">
-      <h2 className="text-4xl font-serif text-pink-800 mb-2">Bring Your Floral Vision to Life</h2>
+    <div className="max-w-3xl mx-auto text-center">
+      <h2 className="text-4xl font-serif text-pink-800 mb-4">Dê vida à sua visão floral</h2>
       <p className="text-lg text-gray-600 mb-8">
-        Start by uploading a photo of your space, an existing arrangement, or a floor plan.
+        Comece enviando uma foto. Pode ser um arranjo que você admira, um espaço que deseja decorar ou até mesmo um buquê que você montou.
       </p>
+
       <div
-        className="w-full h-64 border-2 border-dashed border-pink-300 rounded-xl flex flex-col items-center justify-center bg-white cursor-pointer hover:bg-rose-100 transition-colors"
-        onClick={handleClick}
+        {...getRootProps()}
+        className={`p-12 border-4 border-dashed rounded-xl cursor-pointer transition-colors ${
+          isDragActive ? 'border-pink-500 bg-rose-50' : 'border-pink-200 hover:border-pink-400'
+        }`}
       >
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*"
-          className="hidden"
-          disabled={isLoading}
-        />
-        {isLoading ? (
-          <div className="flex flex-col items-center">
-            <Spinner />
-            <p className="mt-4 text-gray-600">Processing Image...</p>
-          </div>
-        ) : (
-          <>
-            <UploadIcon />
-            <p className="mt-4 text-gray-600">
-              <span className="font-semibold text-pink-600">Click to upload</span> or drag and drop
-            </p>
-            <p className="text-sm text-gray-500">PNG, JPG, GIF up to 10MB</p>
-          </>
-        )}
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center justify-center text-pink-700">
+          <UploadIcon className="h-16 w-16 mb-4" />
+          {isDragActive ? (
+            <p className="text-xl font-semibold">Solte a imagem aqui...</p>
+          ) : (
+            <>
+              <p className="text-xl font-semibold">Arraste e solte uma imagem aqui, ou clique para selecionar</p>
+              <p className="text-gray-500 mt-2">PNG, JPG, GIF, WEBP</p>
+            </>
+          )}
+        </div>
       </div>
+      {error && <p className="mt-4 text-red-500">{error}</p>}
     </div>
   );
 };

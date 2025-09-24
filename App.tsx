@@ -1,151 +1,163 @@
-
-import React, { useState, useCallback } from 'react';
-import { Screen, Project } from './types';
-import useLocalStorage from './hooks/useLocalStorage';
+import React, { useState } from 'react';
 import Header from './components/Header';
 import UploadScreen from './components/UploadScreen';
 import EditScreen from './components/EditScreen';
 import ResultScreen from './components/ResultScreen';
 import ProjectsScreen from './components/ProjectsScreen';
-import { editImageWithGemini } from './services/geminiService';
+import ProjectDetailScreen from './components/ProjectDetailScreen';
+import { generateImage } from './services/geminiService';
+import useLocalStorage from './hooks/useLocalStorage';
+import { Project, ImageData } from './types';
 
-const App: React.FC = () => {
-  const [screen, setScreen] = useState<Screen>(Screen.UPLOAD);
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [currentMimeType, setCurrentMimeType] = useState<string>('');
-  const [currentPrompt, setCurrentPrompt] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+type Screen = 'upload' | 'edit' | 'result' | 'projects' | 'projectDetail';
+
+function App() {
+  const [screen, setScreen] = useState<Screen>('upload');
+  const [originalImage, setOriginalImage] = useState<{ raw: ImageData, url: string } | null>(null);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [projects, setProjects] = useLocalStorage<Project[]>('flora-design-projects', []);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const fileToGenerativePart = async (file: File) => {
-    const base64EncodedDataPromise = new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-      reader.readAsDataURL(file);
-    });
-    return {
-      inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
-      base64Url: `data:${file.type};base64,${await base64EncodedDataPromise}`
-    };
-  };
-  
-  const handleImageUpload = useCallback(async (file: File) => {
-    setIsLoading(true);
+  const handleImageUpload = (imageData: ImageData) => {
+    setOriginalImage({ raw: imageData, url: `data:${imageData.mimeType};base64,${imageData.data}` });
+    setScreen('edit');
     setError(null);
-    try {
-      const { base64Url } = await fileToGenerativePart(file);
-      setOriginalImage(base64Url);
-      setCurrentMimeType(file.type);
-      setScreen(Screen.EDIT);
-    } catch (err) {
-      setError('Failed to process image. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  };
 
-  const handleGenerate = useCallback(async (prompt: string) => {
+  const handleGenerate = async (newPrompt: string) => {
     if (!originalImage) return;
 
     setIsLoading(true);
     setError(null);
-    setGeneratedImage(null);
-    setCurrentPrompt(prompt);
+    setPrompt(newPrompt);
 
     try {
-      const base64Data = originalImage.split(',')[1];
-      const result = await editImageWithGemini(base64Data, currentMimeType, prompt);
-      if(result && result.imageData){
-        setGeneratedImage(`data:${result.mimeType};base64,${result.imageData}`);
-        setScreen(Screen.RESULT);
-      } else {
-        throw new Error("AI did not return an image. It might be due to safety policies or an invalid prompt.");
-      }
+      const resultImageUrl = await generateImage(originalImage.raw, newPrompt);
+      setGeneratedImageUrl(resultImageUrl);
+      setScreen('result');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(errorMessage);
-      setScreen(Screen.EDIT); // Stay on edit screen to allow retry
+      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      // Stay on the edit screen to allow retry
     } finally {
       setIsLoading(false);
     }
-  }, [originalImage, currentMimeType]);
+  };
 
-  const handleAccept = useCallback(() => {
-    if (!originalImage || !generatedImage || !currentPrompt) return;
+  const resetToUpload = () => {
+    setOriginalImage(null);
+    setGeneratedImageUrl(null);
+    setPrompt('');
+    setError(null);
+    setScreen('upload');
+  };
+
+  const handleSaveProject = () => {
+    if (!originalImage || !generatedImageUrl) return;
+    setIsSaving(true);
     const newProject: Project = {
       id: new Date().toISOString(),
-      originalImage,
-      generatedImage,
-      prompt: currentPrompt,
+      prompt,
+      originalImageUrl: originalImage.url,
+      generatedImageUrl,
       createdAt: new Date().toISOString(),
     };
-    setProjects([newProject, ...projects]);
-    setOriginalImage(null);
-    setGeneratedImage(null);
-    setCurrentPrompt('');
-    setScreen(Screen.UPLOAD);
-  }, [originalImage, generatedImage, currentPrompt, projects, setProjects]);
+    setProjects(prevProjects => [newProject, ...prevProjects]);
+    setTimeout(() => {
+        setIsSaving(false);
+        alert('Projeto salvo com sucesso!');
+        setScreen('projects');
+    }, 500);
+  };
   
-  const handleRedo = useCallback(() => {
-    setGeneratedImage(null);
-    setCurrentPrompt('');
-    setScreen(Screen.EDIT);
-  }, []);
-
-  const handleEditAgain = useCallback(() => {
-    if (!generatedImage) return;
-    setOriginalImage(generatedImage);
-    setGeneratedImage(null);
-    setCurrentPrompt('');
-    setScreen(Screen.EDIT);
-  }, [generatedImage]);
-
-  const handleNewProject = useCallback(() => {
-    setOriginalImage(null);
-    setGeneratedImage(null);
-    setCurrentPrompt('');
-    setError(null);
-    setScreen(Screen.UPLOAD);
-  }, []);
+  const handleViewProjects = () => {
+    setScreen('projects');
+  };
   
-  const handleViewProjects = useCallback(() => setScreen(Screen.PROJECTS), []);
-  const handleDeleteProject = useCallback((id: string) => {
-    setProjects(projects.filter(p => p.id !== id));
-  }, [projects, setProjects]);
+  const handleNewProject = () => {
+      resetToUpload();
+  };
 
+  const handleDeleteProject = (id: string) => {
+      setProjects(projects.filter(p => p.id !== id));
+  };
+  
+  const handleViewProjectDetail = (id: string) => {
+      setSelectedProjectId(id);
+      setScreen('projectDetail');
+  };
+
+  const handleBackToProjects = () => {
+    setSelectedProjectId(null);
+    setScreen('projects');
+  };
+  
+  const handleEditAgain = () => {
+      if(generatedImageUrl) {
+          const base64Data = generatedImageUrl.split(',')[1];
+          // We don't know the exact mime type from the data URL, but png is a safe bet for generated images
+          const newOriginal: ImageData = { data: base64Data, mimeType: 'image/png' };
+          setOriginalImage({raw: newOriginal, url: generatedImageUrl });
+          setGeneratedImageUrl(null);
+          setScreen('edit');
+      }
+  };
 
   const renderScreen = () => {
     switch (screen) {
-      case Screen.UPLOAD:
+      case 'upload':
         return <UploadScreen onImageUpload={handleImageUpload} isLoading={isLoading} />;
-      case Screen.EDIT:
-        return <EditScreen originalImage={originalImage!} onGenerate={handleGenerate} isLoading={isLoading} error={error} />;
-      case Screen.RESULT:
-        return <ResultScreen 
-                  originalImage={originalImage!} 
-                  generatedImage={generatedImage!}
-                  prompt={currentPrompt}
-                  onAccept={handleAccept} 
-                  onRedo={handleRedo} 
-                  onEditAgain={handleEditAgain} 
-                />;
-      case Screen.PROJECTS:
-        return <ProjectsScreen projects={projects} onDeleteProject={handleDeleteProject} />;
+      case 'edit':
+        if (!originalImage) {
+            resetToUpload();
+            return null;
+        }
+        return <EditScreen imageUrl={originalImage.url} onGenerate={handleGenerate} isLoading={isLoading} onBack={resetToUpload} />;
+      case 'result':
+        if (!originalImage || !generatedImageUrl) {
+            resetToUpload();
+            return null;
+        }
+        return (
+          <ResultScreen
+            originalImageUrl={originalImage.url}
+            generatedImageUrl={generatedImageUrl}
+            prompt={prompt}
+            onSave={handleSaveProject}
+            onEdit={handleEditAgain}
+            onRestart={resetToUpload}
+            isSaving={isSaving}
+          />
+        );
+      case 'projects':
+          return <ProjectsScreen projects={projects} onViewProject={handleViewProjectDetail} onDeleteProject={handleDeleteProject} onNewProject={handleNewProject}/>;
+      case 'projectDetail':
+          const project = projects.find(p => p.id === selectedProjectId);
+          if(!project) {
+              handleBackToProjects();
+              return null;
+          }
+          return <ProjectDetailScreen project={project} onBack={handleBackToProjects} />;
       default:
         return <UploadScreen onImageUpload={handleImageUpload} isLoading={isLoading} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-rose-50 font-sans text-gray-800">
-      <Header onNewProject={handleNewProject} onViewProjects={handleViewProjects} />
-      <main className="p-4 sm:p-8 pt-24">
+    <div className="bg-rose-50 min-h-screen font-sans text-gray-800">
+      <Header onViewProjects={handleViewProjects} onNewProject={handleNewProject} />
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && <div className="max-w-3xl mx-auto mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center">{error}</div>}
         {renderScreen()}
       </main>
+      <footer className="text-center py-6 text-gray-500 text-sm">
+        <p>Criado com 🌸 por FloraDesign AI</p>
+      </footer>
     </div>
   );
-};
+}
 
 export default App;
