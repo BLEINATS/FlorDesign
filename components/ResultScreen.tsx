@@ -1,7 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ImageData } from '../types';
-import { DownloadIcon, EditIcon, RestartIcon, SaveIcon } from './icons';
 
 interface ResultScreenProps {
   originalImage: ImageData;
@@ -43,98 +42,93 @@ const ResultScreen: React.FC<ResultScreenProps> = ({
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = generatedImageUrl;
-    const safePrompt = prompt.slice(0, 30).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    link.download = `flora-design-${safePrompt}.png`;
+    link.download = `flora-design-vision.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="flex-1 flex flex-col pt-16 px-6 animate-slide-up bg-luxury-cream overflow-y-auto pb-10">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-serif font-bold text-luxury-slate">Visão Final</h2>
-        <p className="text-xs text-slate-400 mt-1 italic">"{prompt}"</p>
-      </div>
-
-      {/* SISTEMA DE CORTINA (BEFORE/AFTER SLIDER) */}
+    <div className="flex-1 flex flex-col pt-20 px-6 animate-slide-up bg-luxury-cream overflow-y-auto pb-10 no-scrollbar">
+      
+      {/* Visualização de Comparação - Ajustada para não cortar */}
       <div 
         ref={containerRef}
-        className="relative w-full aspect-[4/5] max-w-[450px] mx-auto rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5 select-none touch-none"
+        className="relative w-full max-w-[500px] mx-auto rounded-[40px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] bg-white ring-1 ring-black/5 select-none touch-none aspect-[3/4]"
         onMouseMove={onMouseMove}
         onMouseDown={() => setIsDragging(true)}
         onMouseUp={() => setIsDragging(false)}
         onMouseLeave={() => setIsDragging(false)}
         onTouchMove={onTouchMove}
       >
-        {/* Imagem Alterada (Depois) - Base */}
-        <img src={generatedImageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Depois" />
+        {/* Imagem Gerada (Base) */}
+        <img 
+          src={generatedImageUrl} 
+          className="absolute inset-0 w-full h-full object-contain bg-slate-50" 
+          alt="Depois" 
+        />
         
-        {/* Imagem Original (Antes) - Camada Superior com Clip */}
+        {/* Imagem Original (Camada Superior com Clip) */}
         <div 
           className="absolute inset-0 w-full h-full overflow-hidden"
           style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
         >
-          <img src={originalImageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Antes" />
-          <div className="absolute top-4 left-6 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[10px] text-white font-black uppercase tracking-widest border border-white/20">
-            Original
-          </div>
+          <img 
+            src={originalImageUrl} 
+            className="absolute inset-0 w-full h-full object-contain bg-slate-50" 
+            alt="Antes" 
+          />
         </div>
 
-        {/* Label Depois */}
+        {/* Slider Handle (Círculo Dourado) */}
         <div 
-          className="absolute top-4 right-6 px-3 py-1 bg-luxury-rose/80 backdrop-blur-md rounded-full text-[10px] text-white font-black uppercase tracking-widest border border-white/20 transition-opacity"
-          style={{ opacity: sliderPos > 85 ? 0 : 1 }}
-        >
-          Design IA
-        </div>
-
-        {/* Barra e Handle da Cortina */}
-        <div 
-          className="absolute top-0 bottom-0 w-1 bg-white/50 backdrop-blur-sm cursor-ew-resize z-10"
+          className="absolute top-0 bottom-0 w-1 bg-white/40 backdrop-blur-sm z-20"
           style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center border-2 border-luxury-gold">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#D4AF37] rounded-full shadow-2xl flex items-center justify-center border-4 border-white">
             <div className="flex gap-1">
-              <span className="text-luxury-gold text-xs">◀</span>
-              <span className="text-luxury-gold text-xs">▶</span>
+              <span className="text-white text-[10px]">◀</span>
+              <span className="text-white text-[10px]">▶</span>
             </div>
           </div>
         </div>
       </div>
 
-      <p className="text-center text-[10px] text-slate-400 mt-4 font-bold uppercase tracking-widest animate-pulse">
-        Arraste o círculo para comparar
+      <p className="text-center text-[10px] text-slate-400 mt-6 font-black uppercase tracking-[0.2em]">
+        ARRASTE O CÍRCULO PARA COMPARAR
       </p>
 
-      {/* Botões de Ação Otimizados */}
-      <div className="mt-8 grid grid-cols-2 gap-3 max-w-[450px] mx-auto w-full">
+      {/* Botões de Ação - Conforme Screenshot */}
+      <div className="mt-10 grid grid-cols-2 gap-4 max-w-[500px] mx-auto w-full">
         <button
           onClick={onSave}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-luxury-rose text-white rounded-2xl shadow-lg active:scale-95 transition-all"
+          className="h-20 flex flex-col items-center justify-center gap-1.5 bg-[#BE185D] text-white rounded-[24px] shadow-lg active:scale-95 transition-all"
         >
-          <SaveIcon className="w-5 h-5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>favorite</span>
           <span className="text-[10px] font-black uppercase tracking-widest">Salvar</span>
         </button>
+        
         <button
           onClick={handleDownload}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-white text-luxury-slate rounded-2xl shadow-lg border border-black/5 active:scale-95 transition-all"
+          className="h-20 flex flex-col items-center justify-center gap-1.5 bg-white text-slate-800 border border-slate-100 rounded-[24px] shadow-sm active:scale-95 transition-all"
         >
-          <DownloadIcon className="w-5 h-5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>download</span>
           <span className="text-[10px] font-black uppercase tracking-widest">Baixar</span>
         </button>
+
         <button
           onClick={onEditAgain}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-white text-luxury-slate rounded-2xl shadow-lg border border-black/5 active:scale-95 transition-all"
+          className="h-20 flex flex-col items-center justify-center gap-1.5 bg-white text-slate-800 border border-slate-100 rounded-[24px] shadow-sm active:scale-95 transition-all"
         >
-          <EditIcon className="w-5 h-5" />
+          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>edit_note</span>
           <span className="text-[10px] font-black uppercase tracking-widest">Refinar</span>
         </button>
+
         <button
           onClick={onRestart}
-          className="flex flex-col items-center justify-center gap-2 p-4 bg-luxury-slate text-white rounded-2xl shadow-lg active:scale-95 transition-all"
+          className="h-20 flex flex-col items-center justify-center gap-1.5 bg-[#1e293b] text-white rounded-[24px] shadow-lg active:scale-95 transition-all"
         >
-          <RestartIcon className="w-5 h-5" />
+          <span className="material-symbols-outlined rotate-180" style={{ fontSize: '24px' }}>sync</span>
           <span className="text-[10px] font-black uppercase tracking-widest">Novo</span>
         </button>
       </div>

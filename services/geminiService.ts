@@ -7,17 +7,15 @@ export const generateImage = async (
   config: EditConfig
 ): Promise<ImageData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  // Flash: gemini-2.5-flash-image | Pro: gemini-3-pro-image-preview
-  const modelName = config.isHighQuality ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+  const modelName = 'gemini-2.5-flash-image';
 
   let systemPrompt = "";
   if (config.mode === 'humanize') {
-    systemPrompt = "TASK: ULTIMATE PHOTO REALISM. INSTRUCTION: Transform this image into a high-end, hyper-realistic architectural photograph. Enhance lighting, textures of petals, and shadows. Do not change the layout, only increase the realism of the flowers significantly.";
-  } else if (config.mode === 'create') {
-    systemPrompt = `TASK: FLORAL CREATION. INSTRUCTION: Add new floral elements to the scene. Design: ${config.prompt}. Match the existing environment's lighting, perspective and camera lens perfectly.`;
+    systemPrompt = "REFINAMENTO FOTORREALISTA: Aplique realismo fotográfico extremo (8K) nesta decoração floral. Foque na textura natural das pétalas, luz volumétrica e nitidez profissional.";
   } else {
-    systemPrompt = `TASK: FLORAL EDITING. INSTRUCTION: Modify the existing floral arrangement. Change to: ${config.prompt}. Keep the overall structure of the room identical, focusing on replacing the species mentioned.`;
+    systemPrompt = `RE-ESTILIZAÇÃO FLORAL: Modifique a área mascarada da imagem original conforme estas especificações: "${config.prompt}". 
+    Mantenha o ambiente e os vasos originais, focando exclusivamente em trocar ou adicionar as flores e folhagens com fidelidade fotográfica absoluta. 
+    Se o usuário especificou cores e espécies, siga rigorosamente.`;
   }
 
   try {
@@ -37,7 +35,7 @@ export const generateImage = async (
     });
 
     const candidate = response.candidates?.[0];
-    if (!candidate) throw new Error('O Google não retornou resultado. Tente novamente em 1 minuto.');
+    if (!candidate) throw new Error('Nenhum resultado retornado pela IA.');
 
     const part = candidate.content.parts.find(p => p.inlineData);
     if (part?.inlineData) {
@@ -47,25 +45,27 @@ export const generateImage = async (
       };
     }
     
-    throw new Error('O modelo não gerou uma imagem válida. Tente simplificar o pedido ou usar o Modo Flash.');
+    throw new Error('Falha no processamento da imagem pela IA.');
   } catch (error: any) {
-    if (error.message?.includes('429')) {
-      throw new Error('Limite de uso atingido. O Google bloqueou temporariamente para evitar custos. Tente novamente em 60 segundos.');
-    }
+    console.error("Erro Gemini API:", error);
     throw error;
   }
 };
 
 export const describeImage = async (imageData: ImageData): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: {
-      parts: [
-        { inlineData: { data: imageData.data, mimeType: imageData.mimeType } },
-        { text: "Describe this floral arrangement style in 5 words." },
-      ]
-    }
-  });
-  return response.text || '';
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: imageData.data, mimeType: imageData.mimeType } },
+          { text: "Identifique as flores principais nesta imagem e retorne apenas o nome delas (ex: Rosas Vermelhas). Se for um mix, diga 'Arranjo Misto'." },
+        ]
+      }
+    });
+    return response.text?.trim() || 'Flores';
+  } catch (e) {
+    return 'Rosas Brancas';
+  }
 };

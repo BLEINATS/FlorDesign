@@ -1,271 +1,449 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ImageData, EditConfig, EditMode } from '../types';
+import { describeImage } from '../services/geminiService';
 
-interface FlowerSpecies {
-  id: string;
-  name: string;
-  emoji: string;
-  colors: { name: string; hex: string }[];
-}
-
-const FLORAL_CATALOG: FlowerSpecies[] = [
-  { 
-    id: 'rose', name: 'Rosa', emoji: '🌹', 
-    colors: [{name: 'Vermelha', hex: '#BE185D'}, {name: 'Branca', hex: '#FFFFFF'}, {name: 'Chá', hex: '#FBCFE8'}] 
-  },
-  { 
-    id: 'tulip', name: 'Tulipa', emoji: '🌷', 
-    colors: [{name: 'Amarela', hex: '#FDE047'}, {name: 'Roxa', hex: '#A855F7'}, {name: 'Rosa', hex: '#F472B6'}] 
-  },
-  { 
-    id: 'orchid', name: 'Orquídea', emoji: '🦋', 
-    colors: [{name: 'Branca', hex: '#F8FAFC'}, {name: 'Lilás', hex: '#E9D5FF'}, {name: 'Amarela', hex: '#FEF08A'}] 
-  },
-  { 
-    id: 'lily', name: 'Lírio', emoji: '🌿', 
-    colors: [{name: 'Branco', hex: '#FFFFFF'}, {name: 'Laranja', hex: '#FB923C'}] 
-  },
-  { 
-    id: 'hydrangea', name: 'Hortênsia', emoji: '💠', 
-    colors: [{name: 'Azul', hex: '#60A5FA'}, {name: 'Rosa', hex: '#F472B6'}] 
-  },
-  { 
-    id: 'peony', name: 'Peônia', emoji: '🌺', 
-    colors: [{name: 'Rosa Bebê', hex: '#FCE7F3'}, {name: 'Coral', hex: '#FDA4AF'}] 
-  },
+const PRIMARY_COLORS = [
+  { name: 'Branco', hex: '#FFFFFF' },
+  { name: 'Amarelo', hex: '#FACC15' },
+  { name: 'Vermelho', hex: '#EF4444' },
+  { name: 'Azul', hex: '#3B82F6' },
+  { name: 'Rosa', hex: '#EC4899' },
 ];
+
+const DEFAULT_FLOWERS = [
+  { name: 'Tulipas', img: 'https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11?auto=format&fit=crop&q=80&w=200', id: 'tulipas' },
+  { name: 'Lírios', img: 'https://images.unsplash.com/photo-1508784411316-02b8cd4d3a3a?auto=format&fit=crop&q=80&w=200', id: 'lirios' },
+  { name: 'Peônias', img: 'https://images.unsplash.com/photo-1563245339-6b2e4428546a?auto=format&fit=crop&q=80&w=200', id: 'peonias' },
+];
+
+const DEFAULT_FOLIAGE = ['Eucalipto', 'Samambaia', 'Costela de Adão', 'Ruscus'];
 
 interface Props {
   originalImage: ImageData;
   onGenerate: (config: EditConfig) => void;
   isLoading: boolean;
   error: string | null;
-  isQuotaError: boolean;
-  onOpenKey: () => void;
+  onRestart: () => void;
+  onSave: () => void;
 }
 
-const EditScreen: React.FC<Props> = ({ originalImage, onGenerate, isLoading, error, isQuotaError, onOpenKey }) => {
-  const [prompt, setPrompt] = useState('');
-  const [mode, setMode] = useState<EditMode>('edit');
-  const [quality, setQuality] = useState(false);
-  const [retryTimer, setRetryTimer] = useState<number | null>(null);
-  const [showCatalog, setShowCatalog] = useState(false);
+const EditScreen: React.FC<Props> = ({ originalImage, onGenerate, isLoading, error, onRestart, onSave }) => {
+  const [activeMode, setActiveMode] = useState<EditMode>('edit');
+  const [customPrompt, setCustomPrompt] = useState('');
+  
+  // Ativos e Persistência
+  const [flowers, setFlowers] = useState(() => {
+    const saved = localStorage.getItem('flora-custom-flowers');
+    return saved ? JSON.parse(saved) : DEFAULT_FLOWERS;
+  });
+  const [foliages, setFoliages] = useState(() => {
+    const saved = localStorage.getItem('flora-custom-foliage');
+    return saved ? JSON.parse(saved) : DEFAULT_FOLIAGE;
+  });
+
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [customColorHex, setCustomColorHex] = useState<string | null>(null);
+  const [selectedFlower, setSelectedFlower] = useState<string | null>(null);
+  const [selectedFoliage, setSelectedFoliage] = useState<string[]>([]);
+  
+  const [isShowingAllFlowers, setIsShowingAllFlowers] = useState(false);
+  const [isShowingAllFoliage, setIsShowingAllFoliage] = useState(false);
+  const [isAddingNew, setIsAddingNew] = useState<'flower' | 'foliage' | null>(null);
+  const [newNameInput, setNewNameInput] = useState('');
+
+  const [detectedSpecies, setDetectedSpecies] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<'brush' | 'eraser' | 'zoom' | 'pan' | null>('brush');
+  const [brushSize, setBrushSize] = useState(30);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
+  const isDrawing = useRef(false);
+  const isPanning = useRef(false);
+  const startPanPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    let interval: any;
-    if (isQuotaError && !retryTimer) setRetryTimer(60);
-    if (retryTimer && retryTimer > 0) {
-      interval = setInterval(() => setRetryTimer(prev => (prev ? prev - 1 : null)), 1000);
-    } else if (retryTimer === 0) setRetryTimer(null);
-    return () => clearInterval(interval);
-  }, [isQuotaError, retryTimer]);
+    localStorage.setItem('flora-custom-flowers', JSON.stringify(flowers));
+    localStorage.setItem('flora-custom-foliage', JSON.stringify(foliages));
+  }, [flowers, foliages]);
 
-  const selectFlower = (species: FlowerSpecies, colorName: string) => {
-    const newPrompt = `Substitua todas as flores atuais por ${species.name}s na cor ${colorName}. Mantenha o estilo do vaso e o realismo fotográfico.`;
-    setPrompt(newPrompt);
-    setMode('edit');
-    setShowCatalog(false);
+  useEffect(() => {
+    const runDetection = async () => {
+      try {
+        const species = await describeImage(originalImage);
+        setDetectedSpecies(species);
+      } catch (e) {
+        setDetectedSpecies("Arranjo Floral");
+      }
+    };
+    runDetection();
+  }, [originalImage]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !containerRef.current) return;
+    canvas.width = containerRef.current.clientWidth;
+    canvas.height = containerRef.current.clientHeight;
+  }, []);
+
+  const getCoordinates = (e: any) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
   };
 
-  const handleSubmit = () => {
-    onGenerate({ 
-      prompt: mode === 'humanize' ? 'Realismo fotográfico extremo, texturas botânicas 8k' : prompt, 
-      mode, 
-      isHighQuality: quality, 
-      fidelityLevel: 'balanced' 
-    });
+  const handlePointerDown = (e: any) => {
+    if (activeTool === 'pan') {
+      isPanning.current = true;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      startPanPos.current = { x: clientX - offset.x, y: clientY - offset.y };
+      return;
+    }
+    if (activeTool !== 'brush' && activeTool !== 'eraser') return;
+    isDrawing.current = true;
+    const { x, y } = getCoordinates(e);
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) { ctx.beginPath(); ctx.moveTo(x, y); }
+  };
+
+  const handlePointerMove = (e: any) => {
+    if (activeTool === 'pan' && isPanning.current) {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      setOffset({ x: clientX - startPanPos.current.x, y: clientY - startPanPos.current.y });
+      return;
+    }
+    if (!isDrawing.current || !canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    const { x, y } = getCoordinates(e);
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (activeTool === 'brush') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(19, 236, 91, 0.4)'; 
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = '#13ec5b';
+    } else if (activeTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.shadowBlur = 0;
+    }
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const handlePointerUp = () => {
+    isDrawing.current = false;
+    isPanning.current = false;
+    canvasRef.current?.getContext('2d')?.beginPath();
+  };
+
+  const clearSelection = () => {
+    setSelectedColor(null);
+    setCustomColorHex(null);
+    setSelectedFlower(null);
+    setSelectedFoliage([]);
+    setCustomPrompt('');
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+  };
+
+  // Added toggleFoliage function to handle selecting/deselecting foliages.
+  const toggleFoliage = (foliage: string) => {
+    setSelectedFoliage(prev => 
+      prev.includes(foliage) ? prev.filter(f => f !== foliage) : [...prev, foliage]
+    );
+  };
+
+  const handleAddNewItem = () => {
+    if (!newNameInput.trim()) return;
+    if (isAddingNew === 'flower') {
+      setFlowers([...flowers, { name: newNameInput, id: `custom-${Date.now()}`, img: 'https://images.unsplash.com/photo-1596438459194-f275f413d6ff?auto=format&fit=crop&q=80&w=200' }]);
+    } else {
+      setFoliages([...foliages, newNameInput]);
+    }
+    setNewNameInput('');
+    setIsAddingNew(null);
+  };
+
+  const adjustZoom = (delta: number) => {
+    setZoomScale(prev => Math.max(1, Math.min(4, prev + delta)));
   };
 
   return (
-    <div className="flex-1 flex flex-col pt-16 animate-slide-up relative h-[calc(100dvh-64px)] bg-luxury-cream overflow-hidden">
+    <div className="flex-1 w-full h-full bg-[#0a0f0b] font-display text-white overflow-hidden flex flex-col relative">
       
-      {/* Botão do Catálogo Floral - Z-INDEX 110 para ficar acima do Drawer */}
-      <button 
-        onClick={() => setShowCatalog(!showCatalog)}
-        className={`absolute right-4 top-20 z-[110] w-16 h-16 rounded-2xl flex flex-col items-center justify-center transition-all shadow-2xl border ${
-          showCatalog ? 'bg-luxury-slate text-white border-white/20' : 'bg-white text-luxury-gold border-luxury-gold/20'
-        }`}
-      >
-        <span className="text-2xl">{showCatalog ? '✕' : '💐'}</span>
-        <span className="text-[7px] font-black uppercase tracking-widest mt-1">
-          {showCatalog ? 'Fechar' : 'Espécies'}
-        </span>
-      </button>
+      {/* HEADER SUPERIOR */}
+      <div className="absolute top-0 left-0 w-full z-40 p-4 pt-10 flex items-center justify-between px-6 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+        <button onClick={onRestart} className="size-10 flex items-center justify-center rounded-full bg-black/40 border border-white/10 text-white active:scale-90 transition-transform backdrop-blur-md">
+          <span className="material-symbols-outlined">arrow_back</span>
+        </button>
+        
+        <div className="flex items-center gap-2">
+            <button onClick={clearSelection} className="h-10 px-4 rounded-full bg-white/5 border border-white/10 text-rose-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-transform backdrop-blur-md">
+                <span className="material-symbols-outlined text-sm">restart_alt</span> Limpar
+            </button>
+        </div>
 
-      {/* Drawer do Catálogo - FIXED z-100 */}
-      {showCatalog && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowCatalog(false)} />
-          <div className="w-[85%] max-w-[340px] bg-white h-full shadow-2xl flex flex-col animate-slide-left relative z-[101]">
-            <div className="p-8 border-b border-black/5 bg-luxury-cream/80">
-              <h3 className="font-serif font-bold text-2xl text-luxury-slate">Boutique Floral</h3>
-              <p className="text-[9px] text-slate-400 uppercase tracking-[0.2em] mt-1">Escolha uma flor para sua visão</p>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 space-y-10 no-scrollbar pb-32">
-              {FLORAL_CATALOG.map((item) => (
-                <div key={item.id} className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{item.emoji}</span>
-                    <span className="text-xs font-black uppercase tracking-[0.2em] text-luxury-slate">{item.name}s</span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {item.colors.map((color) => (
-                      <button
-                        key={color.name}
-                        onClick={() => selectFlower(item, color.name)}
-                        className="flex items-center gap-4 px-5 py-4 bg-luxury-cream rounded-3xl border border-black/5 active:scale-95 transition-all shadow-sm group"
-                      >
-                        <div 
-                          className="w-8 h-8 rounded-full border-2 border-white shadow-xl group-hover:scale-110 transition-transform" 
-                          style={{ backgroundColor: color.hex }}
-                        />
-                        <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">{color.name}</span>
-                      </button>
-                    ))}
-                  </div>
+        <button onClick={onSave} className="h-10 px-6 rounded-full bg-primary text-[#102216] text-[10px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(19,236,91,0.3)] active:scale-95 transition-transform">
+            Salvar
+        </button>
+      </div>
+
+      {/* ÁREA DE VISUALIZAÇÃO COM MÁSCARA E ZOOM */}
+      <div 
+        ref={containerRef}
+        className="relative w-full flex-1 bg-[#050806] overflow-hidden"
+        onMouseDown={handlePointerDown}
+        onMouseMove={handlePointerMove}
+        onMouseUp={handlePointerUp}
+        onMouseLeave={handlePointerUp}
+        onTouchStart={handlePointerDown}
+        onTouchMove={handlePointerMove}
+        onTouchEnd={handlePointerUp}
+      >
+        <div 
+          className="w-full h-full origin-center transition-transform duration-300 ease-out"
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoomScale})` }}
+        >
+          <img src={`data:${originalImage.mimeType};base64,${originalImage.data}`} className="w-full h-full object-contain pointer-events-none" alt="Original" />
+          <canvas ref={canvasRef} className="absolute inset-0 z-10 touch-none" />
+          
+          <div className="absolute top-[18%] left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 bg-primary/20 backdrop-blur-xl border border-primary/40 rounded-full flex items-center gap-2 pointer-events-none">
+            <span className="material-symbols-outlined text-primary text-xs">edit</span>
+            <span className="text-primary text-[8px] font-black uppercase tracking-[0.3em]">Máscara de IA</span>
+          </div>
+        </div>
+
+        {/* CONTROLES FLUTUANTES LATERAIS (UPGRADED) */}
+        <div className="absolute right-6 top-[22%] flex flex-col gap-4 z-30">
+            {/* Tool Inspector (Aparece se Pincel ou Borracha ativos) */}
+            {(activeTool === 'brush' || activeTool === 'eraser') && (
+              <div className="absolute right-16 top-0 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-3 flex flex-col items-center gap-2 animate-fade-in">
+                <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center mb-1">
+                  <div className="bg-primary rounded-full" style={{ width: brushSize/2, height: brushSize/2 }} />
                 </div>
-              ))}
+                <input 
+                  type="range" 
+                  min="5" 
+                  max="100" 
+                  value={brushSize} 
+                  onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                  className="h-32 w-2 appearance-none bg-white/10 rounded-full overflow-hidden [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full cursor-pointer"
+                  style={{ writingMode: 'bt-lr' as any, WebkitAppearance: 'slider-vertical' }}
+                />
+                <span className="text-[8px] font-black text-white/40">{brushSize}px</span>
+              </div>
+            )}
+
+            {/* Zoom Inspector */}
+            {activeTool === 'zoom' && (
+              <div className="absolute right-16 bottom-0 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl p-2 flex flex-col gap-2 animate-fade-in">
+                <button onClick={() => adjustZoom(0.5)} className="size-10 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white"><span className="material-symbols-outlined">add</span></button>
+                <button onClick={() => adjustZoom(-0.5)} className="size-10 rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white"><span className="material-symbols-outlined">remove</span></button>
+                <button onClick={() => { setZoomScale(1); setOffset({x:0,y:0}); }} className="size-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary text-[8px] font-black">1:1</button>
+              </div>
+            )}
+
+            {/* Tool Buttons */}
+            <div className="flex flex-col gap-3 bg-black/40 backdrop-blur-md p-2 rounded-[30px] border border-white/5">
+                <button onClick={() => setActiveTool('brush')} className={`size-12 rounded-full flex items-center justify-center transition-all ${activeTool === 'brush' ? 'bg-primary text-black shadow-[0_0_20px_rgba(19,236,91,0.4)]' : 'text-white/40 hover:text-white'}`}>
+                    <span className="material-symbols-outlined">brush</span>
+                </button>
+                <button onClick={() => setActiveTool('eraser')} className={`size-12 rounded-full flex items-center justify-center transition-all ${activeTool === 'eraser' ? 'bg-primary text-black shadow-[0_0_20px_rgba(19,236,91,0.4)]' : 'text-white/40 hover:text-white'}`}>
+                    <span className="material-symbols-outlined">ink_eraser</span>
+                </button>
+                <button onClick={() => setActiveTool('pan')} className={`size-12 rounded-full flex items-center justify-center transition-all ${activeTool === 'pan' ? 'bg-primary text-black shadow-[0_0_20px_rgba(19,236,91,0.4)]' : 'text-white/40 hover:text-white'}`}>
+                    <span className="material-symbols-outlined">pan_tool</span>
+                </button>
+                <div className="h-[1px] w-6 bg-white/10 mx-auto my-1" />
+                <button onClick={() => setActiveTool('zoom')} className={`size-12 rounded-full flex items-center justify-center transition-all ${activeTool === 'zoom' ? 'bg-primary text-black shadow-[0_0_20px_rgba(19,236,91,0.4)]' : 'text-white/40 hover:text-white'}`}>
+                    <span className="material-symbols-outlined">zoom_in</span>
+                </button>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white to-transparent">
-               <div className="bg-luxury-slate text-white text-[10px] py-4 rounded-2xl text-center uppercase tracking-widest font-black shadow-xl">
-                 Seleção Botânica IA
+        </div>
+
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/70 backdrop-blur-md">
+            <div className="w-14 h-14 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-6"></div>
+            <p className="text-primary font-black text-[10px] uppercase tracking-[0.5em] animate-pulse">Design em Progresso</p>
+          </div>
+        )}
+      </div>
+
+      {/* BOTTOM SHEET SELEÇÃO HÍBRIDA */}
+      <div className="bg-[#102216] border-t border-white/10 rounded-t-[45px] z-40 pb-12 shadow-[0_-30px_100px_rgba(0,0,0,0.9)] animate-slide-up max-h-[55vh] overflow-y-auto no-scrollbar">
+        <div className="w-14 h-1.5 bg-white/10 rounded-full mx-auto mt-5 mb-8" />
+        
+        <div className="px-8 flex flex-col gap-8">
+          <div>
+            <h2 className="text-white text-3xl font-serif italic">Configurações Florais</h2>
+            <p className="text-primary/50 text-[9px] font-black uppercase tracking-[0.4em] mt-2">Personalize sua visão</p>
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 bg-white/5 p-4 rounded-[30px] border border-white/5">
+            <div className="flex items-center gap-3 truncate">
+               <div className="size-12 min-w-[3rem] rounded-2xl overflow-hidden bg-black/40 ring-1 ring-white/10">
+                  <img src={`data:${originalImage.mimeType};base64,${originalImage.data}`} className="w-full h-full object-cover" alt="Source" />
                </div>
+               <div className="truncate">
+                  <p className="text-[10px] text-white font-bold truncate">{detectedSpecies || 'Detectando...'}</p>
+                  <p className="text-primary text-[8px] font-black uppercase tracking-widest mt-1 opacity-60">Foto Atual</p>
+               </div>
+            </div>
+            <span className="material-symbols-outlined text-white/10">arrow_forward</span>
+            <div className="bg-[#0a0f0b] border border-primary/20 rounded-2xl p-3 flex items-center gap-3 focus-within:border-primary transition-all">
+                <input 
+                    type="text" 
+                    value={customPrompt || selectedFlower || ""} 
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="Refinar com texto..."
+                    className="flex-1 bg-transparent text-white text-[10px] font-bold outline-none placeholder:text-white/20"
+                />
+            </div>
+          </div>
+
+          {/* TABELA GERAL */}
+          <div className="flex flex-col gap-8">
+            {/* CORES PRIMÁRIAS */}
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                    <div className="size-1.5 rounded-full bg-rose-500" />
+                    <span className="text-[9px] text-white/40 font-black uppercase tracking-widest">Paleta Primária</span>
+                </div>
+                <div className="flex gap-5 overflow-x-auto no-scrollbar py-2">
+                    {PRIMARY_COLORS.map(c => (
+                        <button 
+                            key={c.name}
+                            onClick={() => { setSelectedColor(c.name); setCustomColorHex(null); }}
+                            className={`size-11 rounded-full border-[3px] flex-shrink-0 transition-all ${selectedColor === c.name ? 'border-primary scale-110 shadow-[0_0_15px_rgba(19,236,91,0.3)]' : 'border-white/10 hover:border-white/30'}`}
+                            style={{ backgroundColor: c.hex }}
+                        />
+                    ))}
+                    <div className="relative flex-shrink-0">
+                      <input type="color" ref={colorInputRef} className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { setCustomColorHex(e.target.value); setSelectedColor(null); }} value={customColorHex || '#13ec5b'} />
+                      <button onClick={() => colorInputRef.current?.click()} className={`size-11 rounded-full flex items-center justify-center border-[3px] transition-all ${customColorHex ? 'border-primary scale-110' : 'bg-white/5 border-white/10'}`} style={customColorHex ? { backgroundColor: customColorHex } : {}}>
+                        <span className={`material-symbols-outlined ${customColorHex ? 'text-black/50' : 'text-white/30'}`}>palette</span>
+                      </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ESPÉCIES */}
+            <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <div className="size-1.5 rounded-full bg-primary" />
+                        <span className="text-[9px] text-white/40 font-black uppercase tracking-widest">Espécies</span>
+                    </div>
+                    <button onClick={() => setIsShowingAllFlowers(!isShowingAllFlowers)} className="text-primary text-[9px] font-bold uppercase tracking-widest">{isShowingAllFlowers ? 'Reduzir' : 'Ver Tudo'}</button>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                    {(isShowingAllFlowers ? flowers : flowers.slice(0, 3)).map((f: any) => (
+                        <button 
+                            key={f.id}
+                            onClick={() => setSelectedFlower(f.name)}
+                            className={`flex flex-col items-center gap-3 p-4 rounded-[28px] border transition-all ${selectedFlower === f.name ? 'bg-primary/10 border-primary' : 'bg-white/5 border-white/5'}`}
+                        >
+                            <img src={f.img} className="size-12 rounded-2xl object-cover shadow-xl" alt={f.name} />
+                            <span className="text-[9px] text-white font-bold truncate w-full text-center">{f.name}</span>
+                        </button>
+                    ))}
+                    {isShowingAllFlowers && (
+                      <button onClick={() => setIsAddingNew('flower')} className="flex flex-col items-center justify-center gap-2 p-4 rounded-[28px] border border-dashed border-white/20 bg-white/5 text-primary active:scale-95 transition-all">
+                        <span className="material-symbols-outlined">add_circle</span>
+                        <span className="text-[8px] font-black uppercase">Novo</span>
+                      </button>
+                    )}
+                </div>
+            </div>
+
+            {/* FOLHAGENS */}
+            <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <div className="size-1.5 rounded-full bg-teal-400" />
+                        <span className="text-[9px] text-white/40 font-black uppercase tracking-widest">Folhagens</span>
+                    </div>
+                    <button onClick={() => setIsShowingAllFoliage(!isShowingAllFoliage)} className="text-primary text-[9px] font-bold uppercase tracking-widest">{isShowingAllFoliage ? 'Reduzir' : 'Ver Tudo'}</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {(isShowingAllFoliage ? foliages : foliages.slice(0, 4)).map((f: string) => (
+                        <button 
+                            key={f}
+                            onClick={() => toggleFoliage(f)}
+                            className={`px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFoliage.includes(f) ? 'bg-primary text-[#102216]' : 'bg-white/5 text-white border border-white/5'}`}
+                        >
+                            {f}
+                        </button>
+                    ))}
+                    {isShowingAllFoliage && (
+                      <button onClick={() => setIsAddingNew('foliage')} className="px-5 py-3 rounded-2xl border border-dashed border-primary/40 text-primary active:scale-95 transition-all flex items-center">
+                        <span className="material-symbols-outlined text-sm">add</span>
+                      </button>
+                    )}
+                </div>
+            </div>
+          </div>
+
+          {/* BOTÃO FINALIZAR */}
+          <div className="pt-6 flex flex-col gap-5">
+            <button 
+              onClick={() => {
+                let finalPrompt = customPrompt || "";
+                if (selectedFlower) finalPrompt += ` Espécie: ${selectedFlower}.`;
+                if (customColorHex) finalPrompt += ` Cor (HEX): ${customColorHex}.`;
+                else if (selectedColor) finalPrompt += ` Cor: ${selectedColor}.`;
+                if (selectedFoliage.length > 0) finalPrompt += ` Folhagens: ${selectedFoliage.join(', ')}.`;
+                onGenerate({ prompt: finalPrompt || "Design floral profissional", mode: 'edit', isHighQuality: true, fidelityLevel: 'balanced' });
+              }}
+              disabled={isLoading}
+              className="w-full h-20 bg-primary text-[#102216] rounded-[32px] font-black uppercase tracking-[0.25em] text-xs flex items-center justify-center gap-4 shadow-[0_25px_70px_rgba(19,236,91,0.2)] active:scale-95 transition-all disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined font-black text-2xl">auto_fix_high</span>
+              Aplicar Mudanças IA
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL ADICIONAR ITEM */}
+      {isAddingNew && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/90 backdrop-blur-xl animate-fade-in">
+          <div className="w-full max-w-sm bg-surface-dark border border-white/10 p-10 rounded-[45px] shadow-2xl">
+            <h3 className="text-white text-2xl font-serif italic mb-2">Novo Ativo</h3>
+            <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest mb-10 opacity-60">Sua biblioteca personalizada</p>
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="Nome do ativo..." 
+              value={newNameInput}
+              onChange={(e) => setNewNameInput(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-2xl h-16 px-6 text-white text-sm outline-none focus:border-primary transition-all mb-8 font-bold"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddNewItem()}
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setIsAddingNew(null)} className="flex-1 h-14 rounded-2xl border border-white/5 text-white/30 font-black uppercase tracking-widest text-[9px]">Cancelar</button>
+              <button onClick={handleAddNewItem} className="flex-1 h-14 rounded-2xl bg-primary text-[#102216] font-black uppercase tracking-widest text-[9px]">Salvar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Visualização da Imagem Central */}
-      <div className="flex-1 overflow-hidden px-6 pt-4 flex flex-col items-center justify-center">
-        <div className="relative w-full max-w-[420px] aspect-[3/4] bg-slate-200 rounded-[40px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-black/5">
-          <img 
-            src={`data:${originalImage.mimeType};base64,${originalImage.data}`} 
-            className="w-full h-full object-cover" 
-            alt="Base de edição" 
-          />
-          {isLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl z-20">
-              <div className="relative">
-                <div className="w-20 h-20 border-2 border-white/10 border-t-luxury-rose rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center text-xl animate-pulse">🌸</div>
-              </div>
-              <p className="text-white mt-8 font-serif italic text-lg tracking-[0.1em]">
-                Compondo sua visão...
-              </p>
-              <div className="mt-2 flex gap-1">
-                <div className="w-1.5 h-1.5 bg-luxury-rose rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-1.5 h-1.5 bg-luxury-rose rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-1.5 h-1.5 bg-luxury-rose rounded-full animate-bounce"></div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Painel de Controle Inferior */}
-      <div className="glass rounded-t-[50px] px-8 pt-10 pb-12 shadow-[0_-20px_60px_rgba(0,0,0,0.1)] border-t border-white/80 z-30 max-h-[60%] overflow-y-auto no-scrollbar safe-pb">
-        
-        {/* MODOS DE OPERAÇÃO - RESTAURADOS */}
-        <div className="mb-8">
-          <div className="flex bg-black/5 p-1.5 rounded-[28px] gap-1 shadow-inner">
-            <button
-              onClick={() => setMode('create')}
-              className={`flex-1 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all ${
-                mode === 'create' ? 'bg-white text-luxury-rose shadow-xl scale-[1.02]' : 'text-slate-400'
-              }`}
-            >
-              Criar
-            </button>
-            <button
-              onClick={() => setMode('edit')}
-              className={`flex-1 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all ${
-                mode === 'edit' ? 'bg-white text-luxury-rose shadow-xl scale-[1.02]' : 'text-slate-400'
-              }`}
-            >
-              Mudar
-            </button>
-            <button
-              onClick={() => setMode('humanize')}
-              className={`flex-1 py-4 rounded-[24px] text-[10px] font-black uppercase tracking-widest transition-all ${
-                mode === 'humanize' ? 'bg-white text-luxury-rose shadow-xl scale-[1.02]' : 'text-slate-400'
-              }`}
-            >
-              Humanizar
-            </button>
-          </div>
-        </div>
-
-        {/* Campo de Texto Dinâmico */}
-        {mode !== 'humanize' ? (
-          <div className="relative mb-8">
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder={mode === 'create' ? "O que deseja criar no espaço?" : "Descreva a alteração ou use o catálogo..."}
-              className="w-full h-28 p-6 bg-white/40 rounded-[32px] focus:ring-2 focus:ring-luxury-gold/20 outline-none transition-all placeholder:text-slate-300 font-medium text-sm resize-none border border-black/5 shadow-inner"
-            />
-            {prompt && (
-              <button 
-                onClick={() => setPrompt('')}
-                className="absolute right-4 bottom-4 w-10 h-10 bg-slate-200/50 rounded-full text-xs flex items-center justify-center text-slate-500 active:scale-90"
-              >✕</button>
-            )}
-          </div>
-        ) : (
-          <div className="mb-8 p-6 bg-luxury-rose/5 rounded-[32px] border border-luxury-rose/10 flex flex-col items-center text-center">
-            <span className="text-2xl mb-2">✨</span>
-            <p className="text-[10px] text-luxury-rose font-black uppercase tracking-[0.2em] mb-1">Modo Realismo Extremo</p>
-            <p className="text-[10px] text-slate-500 leading-relaxed max-w-[200px]">
-              Foco em luz, sombra e texturas orgânicas sem alterar seu design.
-            </p>
-          </div>
-        )}
-
-        {/* Qualidade e Botão Gerar */}
-        <div className="flex flex-col gap-6">
-          <div className="flex justify-between items-center px-4">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-luxury-slate">Alta Fidelidade</span>
-              <span className="text-[8px] text-slate-400 uppercase tracking-widest mt-0.5">Processamento Premium</span>
-            </div>
-            <button 
-              onClick={() => setQuality(!quality)}
-              className={`w-16 h-8 rounded-full transition-all relative ${quality ? 'bg-luxury-gold shadow-lg shadow-luxury-gold/20' : 'bg-slate-300'}`}
-            >
-              <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${quality ? 'translate-x-9' : 'translate-x-1'}`} />
-            </button>
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading || retryTimer !== null || (mode !== 'humanize' && !prompt.trim())}
-            className={`w-full py-7 rounded-[32px] shadow-2xl active:scale-95 transition-all font-black uppercase tracking-[0.4em] text-[12px] ${
-              retryTimer ? 'bg-slate-100 text-slate-300 cursor-not-allowed border border-slate-200' : 'bg-luxury-rose text-white'
-            }`}
-          >
-            {isLoading ? 'IA Trabalhando...' : retryTimer ? `Aguarde ${retryTimer}s` : 'Transformar'}
-          </button>
-        </div>
-
-        {error && (
-          <div className="mt-8 p-6 bg-red-50 rounded-[32px] border border-red-100 flex items-start gap-4 animate-slide-up">
-             <span className="text-xl">⚠️</span>
-             <div className="flex-1">
-               <p className="text-[10px] text-red-600 font-black uppercase tracking-widest mb-1">Aviso do Sistema</p>
-               <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{error}</p>
-             </div>
-          </div>
-        )}
-      </div>
-
       <style>{`
-        @keyframes slideLeft {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        .animate-slide-left { animation: slideLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
       `}</style>
     </div>
   );
