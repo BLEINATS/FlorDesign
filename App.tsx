@@ -145,6 +145,7 @@ const App: React.FC = () => {
     <div className="min-h-[100dvh] flex flex-col bg-luxury-cream text-luxury-slate font-sans overflow-hidden">
       {screen !== 'landing' && (
         <Header 
+          onHome={() => setScreen('landing')}
           onNew={() => setScreen('upload')} 
           onProjects={() => setScreen('projects')} 
           onConfigKey={handleOpenKeySelector}
