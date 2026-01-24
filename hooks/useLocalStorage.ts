@@ -1,5 +1,6 @@
 
-import { useState, useEffect } from 'react';
+// FIX: Added React import to fix 'Cannot find namespace React' error on the return type definition.
+import React, { useState, useEffect } from 'react';
 
 function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {

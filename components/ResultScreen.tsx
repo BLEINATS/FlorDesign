@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { ImageData } from '../types';
 import { DownloadIcon, EditIcon, RestartIcon, SaveIcon } from './icons';
 
@@ -19,76 +20,122 @@ const ResultScreen: React.FC<ResultScreenProps> = ({
   onRestart,
   onEditAgain,
 }) => {
+  const [sliderPos, setSliderPos] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const originalImageUrl = `data:${originalImage.mimeType};base64,${originalImage.data}`;
   const generatedImageUrl = `data:${generatedImage.mimeType};base64,${generatedImage.data}`;
+
+  const handleMove = (clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const percent = (x / rect.width) * 100;
+    setSliderPos(percent);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => handleMove(e.touches[0].clientX);
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) handleMove(e.clientX);
+  };
 
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = generatedImageUrl;
     const safePrompt = prompt.slice(0, 30).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    link.download = `floradesign-ai-${safePrompt || 'imagem'}.png`;
+    link.download = `flora-design-${safePrompt}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-  
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-12">
-        <h2 className="text-4xl font-serif text-pink-800">Sua Visão, Florescida! ✨</h2>
-        <p className="mt-3 text-lg text-gray-600 max-w-3xl mx-auto">
-          Baseado na sua instrução: <span className="font-semibold text-pink-700">"{prompt}"</span>
-        </p>
+    <div className="flex-1 flex flex-col pt-16 px-6 animate-slide-up bg-luxury-cream overflow-y-auto pb-10">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-serif font-bold text-luxury-slate">Visão Final</h2>
+        <p className="text-xs text-slate-400 mt-1 italic">"{prompt}"</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        {/* Original Image */}
-        <div className="text-center">
-            <h3 className="text-2xl font-serif text-pink-800 mb-4">Antes</h3>
-            <div className="aspect-square bg-white rounded-xl shadow-lg overflow-hidden">
-                <img src={originalImageUrl} alt="Original" className="w-full h-full object-contain" />
-            </div>
-        </div>
+      {/* SISTEMA DE CORTINA (BEFORE/AFTER SLIDER) */}
+      <div 
+        ref={containerRef}
+        className="relative w-full aspect-[4/5] max-w-[450px] mx-auto rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5 select-none touch-none"
+        onMouseMove={onMouseMove}
+        onMouseDown={() => setIsDragging(true)}
+        onMouseUp={() => setIsDragging(false)}
+        onMouseLeave={() => setIsDragging(false)}
+        onTouchMove={onTouchMove}
+      >
+        {/* Imagem Alterada (Depois) - Base */}
+        <img src={generatedImageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Depois" />
         
-        {/* Generated Image */}
-        <div className="text-center">
-            <h3 className="text-2xl font-serif text-pink-800 mb-4">Depois</h3>
-            <div className="relative aspect-square bg-white rounded-xl shadow-lg overflow-hidden border-4 border-pink-400">
-                <img src={generatedImageUrl} alt={prompt} className="w-full h-full object-contain" />
+        {/* Imagem Original (Antes) - Camada Superior com Clip */}
+        <div 
+          className="absolute inset-0 w-full h-full overflow-hidden"
+          style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+        >
+          <img src={originalImageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Antes" />
+          <div className="absolute top-4 left-6 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[10px] text-white font-black uppercase tracking-widest border border-white/20">
+            Original
+          </div>
+        </div>
+
+        {/* Label Depois */}
+        <div 
+          className="absolute top-4 right-6 px-3 py-1 bg-luxury-rose/80 backdrop-blur-md rounded-full text-[10px] text-white font-black uppercase tracking-widest border border-white/20 transition-opacity"
+          style={{ opacity: sliderPos > 85 ? 0 : 1 }}
+        >
+          Design IA
+        </div>
+
+        {/* Barra e Handle da Cortina */}
+        <div 
+          className="absolute top-0 bottom-0 w-1 bg-white/50 backdrop-blur-sm cursor-ew-resize z-10"
+          style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-xl flex items-center justify-center border-2 border-luxury-gold">
+            <div className="flex gap-1">
+              <span className="text-luxury-gold text-xs">◀</span>
+              <span className="text-luxury-gold text-xs">▶</span>
             </div>
+          </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <p className="text-center text-[10px] text-slate-400 mt-4 font-bold uppercase tracking-widest animate-pulse">
+        Arraste o círculo para comparar
+      </p>
+
+      {/* Botões de Ação Otimizados */}
+      <div className="mt-8 grid grid-cols-2 gap-3 max-w-[450px] mx-auto w-full">
         <button
           onClick={onSave}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 transition-colors"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-luxury-rose text-white rounded-2xl shadow-lg active:scale-95 transition-all"
         >
-          <SaveIcon className="h-5 w-5" />
-          <span>Salvar Projeto</span>
+          <SaveIcon className="w-5 h-5" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Salvar</span>
         </button>
         <button
           onClick={handleDownload}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white text-pink-700 font-semibold border-2 border-pink-600 rounded-lg hover:bg-rose-100 transition-colors"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-white text-luxury-slate rounded-2xl shadow-lg border border-black/5 active:scale-95 transition-all"
         >
-          <DownloadIcon className="h-5 w-5" />
-          <span>Baixar Imagem</span>
+          <DownloadIcon className="w-5 h-5" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Baixar</span>
         </button>
         <button
           onClick={onEditAgain}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white text-gray-700 font-semibold border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-white text-luxury-slate rounded-2xl shadow-lg border border-black/5 active:scale-95 transition-all"
         >
-          <EditIcon className="h-5 w-5" />
-          <span>Editar Novamente</span>
+          <EditIcon className="w-5 h-5" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Refinar</span>
         </button>
         <button
           onClick={onRestart}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 text-gray-600 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+          className="flex flex-col items-center justify-center gap-2 p-4 bg-luxury-slate text-white rounded-2xl shadow-lg active:scale-95 transition-all"
         >
-          <RestartIcon className="h-5 w-5" />
-          <span>Novo Projeto</span>
+          <RestartIcon className="w-5 h-5" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Novo</span>
         </button>
       </div>
     </div>

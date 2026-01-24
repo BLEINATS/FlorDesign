@@ -1,39 +1,36 @@
+
 import React from 'react';
 
-interface LandingPageProps {
-  onStart: () => void;
-}
-
-const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
+const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
   return (
-    <div className="text-center py-16 px-4">
-      <span className="text-7xl">🌸</span>
-      <h1 className="mt-6 text-5xl font-extrabold font-serif text-pink-800">
-        Dê vida às suas ideias florais com Inteligência Artificial
-      </h1>
-      <p className="mt-6 max-w-2xl mx-auto text-xl text-gray-600">
-        Transforme suas fotos de ambientes e eventos. Adicione, remova ou modifique arranjos florais com um simples comando. Perfeito para designers, decoradores e amantes de flores.
-      </p>
-      <button
-        onClick={onStart}
-        className="mt-10 px-10 py-4 bg-pink-600 text-white text-lg font-bold rounded-full hover:bg-pink-700 transition-transform hover:scale-105 shadow-lg"
-      >
-        Começar a Criar
-      </button>
+    <div className="flex-1 flex flex-col items-center justify-center px-8 text-center bg-white relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] text-[40rem]">🌸</div>
+      </div>
+      
+      <div className="animate-slide-up z-10">
+        <span className="inline-block px-4 py-1 border border-luxury-gold text-luxury-gold rounded-full text-[10px] uppercase tracking-[0.3em] font-bold mb-6">
+          Premium AI Experience
+        </span>
+        <h1 className="text-6xl font-serif font-bold leading-tight mb-6">
+          A Arte Floral, <br/>
+          <span className="italic font-normal text-luxury-rose">Redefinida.</span>
+        </h1>
+        <p className="text-slate-500 font-light text-lg mb-12 max-w-xs mx-auto">
+          Transforme ambientes com a precisão da inteligência artificial botânica.
+        </p>
+        
+        <button
+          onClick={onStart}
+          className="w-full max-w-xs py-5 bg-luxury-slate text-white rounded-2xl shadow-2xl active:scale-95 transition-all font-bold uppercase tracking-widest text-sm"
+        >
+          Iniciar Projeto
+        </button>
+      </div>
 
-      <div className="mt-20 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="p-6 bg-white/50 rounded-lg shadow-sm">
-            <h3 className="text-xl font-semibold text-pink-700">Edição Precisa</h3>
-            <p className="mt-2 text-gray-600">Altere cores, tipos de flores ou remova elementos indesejados mantendo o realismo da foto original.</p>
-        </div>
-        <div className="p-6 bg-white/50 rounded-lg shadow-sm">
-            <h3 className="text-xl font-semibold text-pink-700">Criação Ilimitada</h3>
-            <p className="mt-2 text-gray-600">Adicione novos arranjos, vasos e decorações em qualquer lugar da imagem. Sua imaginação é o limite.</p>
-        </div>
-        <div className="p-6 bg-white/50 rounded-lg shadow-sm">
-            <h3 className="text-xl font-semibold text-pink-700">Inspiração Instantânea</h3>
-            <p className="mt-2 text-gray-600">Não sabe por onde começar? Deixe a IA analisar sua imagem e sugerir prompts criativos para você.</p>
-        </div>
+      <div className="absolute bottom-12 flex flex-col items-center gap-2 opacity-30">
+        <div className="w-px h-12 bg-luxury-slate"></div>
+        <span className="text-[10px] uppercase tracking-widest font-black">Slide to Bloom</span>
       </div>
     </div>
   );

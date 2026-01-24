@@ -1,123 +1,65 @@
-import React, { useState, ChangeEvent } from 'react';
-// FIX: Import Project type for use in props.
+
+import React from 'react';
 import { ImageData, Project } from '../types';
 
-interface UploadScreenProps {
-  onImageUpload: (imageData: ImageData) => void;
-  isLoading: boolean;
-  // FIX: Added missing props to match what's passed from App.tsx.
+interface Props {
+  onImageUpload: (data: ImageData) => void;
   projects: Project[];
-  onViewProject: (id: string) => void;
-  onNewProject: () => void;
+  // FIX: Updated onViewProject to accept an optional string ID, allowing navigation to specific projects from the upload screen.
+  onViewProject: (id?: string) => void;
 }
 
-const UploadScreen: React.FC<UploadScreenProps> = ({ onImageUpload, isLoading, projects, onViewProject, onNewProject }) => {
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleFileChange = (file: File | null) => {
-    setError(null);
-    if (!file) {
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      setError("Por favor, selecione um arquivo de imagem (JPEG, PNG, etc.).");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onabort = () => setError('Leitura do arquivo abortada.');
-    reader.onerror = () => setError('Falha ao ler o arquivo.');
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const base64Data = dataUrl.split(',')[1];
-      if (base64Data) {
-        onImageUpload({ data: base64Data, mimeType: file.type });
-      } else {
-        setError('Não foi possível processar o arquivo de imagem.');
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-  
-  const onFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFileChange(e.target.files[0]);
+const UploadScreen: React.FC<Props> = ({ onImageUpload, projects, onViewProject }) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        onImageUpload({ data: base64, mimeType: file.type });
+      };
+      reader.readAsDataURL(file);
     }
   };
-
-  // FIX: Corrected DragEvent type from HTMLDivElement to HTMLLabelElement to match the element it's attached to.
-  const onDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-  
-  // FIX: Corrected DragEvent type from HTMLDivElement to HTMLLabelElement to match the element it's attached to.
-  const onDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-  
-  // FIX: Corrected DragEvent type from HTMLDivElement to HTMLLabelElement to match the element it's attached to.
-  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileChange(e.dataTransfer.files[0]);
-      e.dataTransfer.clearData();
-    }
-  };
-
 
   return (
-    <div className="max-w-3xl mx-auto text-center">
-      <label
-        htmlFor="file-upload"
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
-        className={`p-12 border-4 border-dashed rounded-xl cursor-pointer transition-colors block ${
-          isDragging ? 'border-pink-500 bg-rose-50' : 'border-pink-200 hover:border-pink-400'
-        }`}
-      >
-        <input id="file-upload" type="file" accept="image/*" onChange={onFileInputChange} className="hidden" />
-        <div className="flex flex-col items-center justify-center text-gray-600">
-            <span className="text-6xl mb-4">🖼️</span>
-            <h2 className="text-2xl font-semibold text-pink-800">Arraste e solte uma imagem aqui</h2>
-            <p className="mt-2">ou</p>
-            <span
-              className="mt-4 px-6 py-2 bg-pink-600 text-white font-medium rounded-md hover:bg-pink-700 transition-colors pointer-events-none"
-            >
-              Selecione um arquivo
-            </span>
-            <p className="text-sm text-gray-500 mt-4">Suporta: JPEG, PNG, WEBP, GIF</p>
+    <div className="flex-1 p-6 flex flex-col pt-24 animate-slide-up">
+      <div className="mb-8">
+        <h2 className="text-3xl font-serif font-bold text-luxury-slate">Inspiração</h2>
+        <p className="text-slate-400 text-sm">Envie uma foto do espaço para começar</p>
+      </div>
+
+      <label className="flex-1 min-h-[300px] border-2 border-dashed border-luxury-gold/30 rounded-[40px] bg-white flex flex-col items-center justify-center gap-4 active:bg-luxury-cream transition-colors cursor-pointer group">
+        <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
+        <div className="w-20 h-20 bg-luxury-cream rounded-full flex items-center justify-center group-active:scale-90 transition-transform">
+          <span className="text-4xl text-luxury-gold">✨</span>
+        </div>
+        <div className="text-center">
+          <p className="font-bold text-luxury-slate">Escolher da Galeria</p>
+          <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest">Toque para selecionar</p>
         </div>
       </label>
-      {isLoading && (
-        <div className="mt-6 flex items-center justify-center gap-2 text-pink-700">
-           <p className="text-lg">Processando imagem...</p>
-        </div>
-      )}
-      {error && <p className="mt-4 text-red-600 bg-red-100 p-3 rounded-lg">{error}</p>}
-      
-      {projects && projects.length > 0 && (
-          <div className="mt-16">
-              <h3 className="text-2xl font-serif text-pink-800 mb-6">Ou continue um projeto recente</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {projects.map((project) => (
-                       <div
-                            key={project.id}
-                            onClick={() => onViewProject(project.id)}
-                            className="group relative cursor-pointer overflow-hidden rounded-lg shadow-lg transition-transform hover:scale-105"
-                        >
-                            <img src={project.generatedImageUrl} alt={project.prompt} className="aspect-square w-full object-cover" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                            <p className="absolute bottom-0 left-0 p-2 text-white text-sm font-semibold truncate w-full group-hover:whitespace-normal">{project.prompt}</p>
-                       </div>
-                  ))}
-              </div>
+
+      {projects.length > 0 && (
+        <div className="mt-10">
+          <div className="flex justify-between items-end mb-4">
+            <h3 className="text-xs font-black uppercase tracking-widest text-luxury-slate">Recentes</h3>
+            {/* FIX: Explicitly call onViewProject without arguments for the "View All" functionality. */}
+            <button onClick={() => onViewProject()} className="text-[10px] font-bold text-luxury-rose uppercase">Ver todos</button>
           </div>
+          <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 no-scrollbar">
+            {projects.slice(0, 3).map(p => (
+              // FIX: Wrapped recent project thumbnails in a clickable div to allow viewing details directly from here.
+              <div 
+                key={p.id} 
+                onClick={() => onViewProject(p.id)}
+                className="min-w-[140px] aspect-[4/5] bg-white rounded-2xl overflow-hidden shadow-sm flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+              >
+                <img src={p.generatedImageUrl} className="w-full h-full object-cover" alt="Recent" />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

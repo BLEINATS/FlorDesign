@@ -1,4 +1,5 @@
 {
   "name": "FloraDesign AI",
-  "description": "Um aplicativo com inteligência artificial para decoradores florais visualizarem e editarem designs de flores em qualquer espaço. Envie uma imagem, descreva suas alterações e deixe a IA dar vida à sua visão."
+  "description": "Um aplicativo com inteligência artificial para decoradores florais visualizarem e editarem designs de flores em qualquer espaço. Envie uma imagem, descreva suas alterações e deixe a IA dar vida à sua visão.",
+  "requestFramePermissions": []
 }

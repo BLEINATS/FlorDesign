@@ -1,34 +1,31 @@
+
 import React from 'react';
 
 interface HeaderProps {
-  onViewProjects: () => void;
-  onNewProject: () => void;
+  onNew: () => void;
+  onProjects: () => void;
+  onConfigKey: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onViewProjects, onNewProject }) => {
+const Header: React.FC<HeaderProps> = ({ onNew, onProjects, onConfigKey }) => {
   return (
-    <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 shadow-sm mb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={onNewProject}>
-            <span className="text-3xl">🌸</span>
-            <h1 className="text-2xl font-serif font-bold text-pink-800">FloraDesign AI</h1>
-          </div>
-          <nav className="flex items-center gap-4">
-            <button
-              onClick={onViewProjects}
-              className="px-4 py-2 text-pink-700 font-medium rounded-md hover:bg-rose-100 transition-colors"
-            >
-              Meus Projetos
-            </button>
-            <button
-              onClick={onNewProject}
-              className="px-4 py-2 bg-pink-600 text-white font-medium rounded-md hover:bg-pink-700 transition-colors"
-            >
-              + Novo Projeto
-            </button>
-          </nav>
-        </div>
+    <header className="fixed top-0 left-0 right-0 z-50 glass px-6 py-4 border-b border-black/5 flex justify-between items-center safe-pt">
+      <div className="flex items-center gap-2 cursor-pointer" onClick={onNew}>
+        <span className="text-xl">🌸</span>
+        <span className="font-serif font-bold text-lg tracking-tight">FloraDesign</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={onConfigKey}
+          className="relative flex items-center gap-1 px-4 py-2 bg-luxury-gold text-white rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-luxury-gold/80 transition-all overflow-hidden"
+          title="Configurar Chave API"
+        >
+          <span className="animate-pulse">🔑</span>
+          <span className="hidden sm:inline">Chave API</span>
+          <div className="absolute inset-0 bg-white/20 animate-shine"></div>
+        </button>
+        <button onClick={onProjects} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-luxury-rose">Projetos</button>
+        <button onClick={onNew} className="w-8 h-8 bg-luxury-slate text-white rounded-full flex items-center justify-center font-light shadow-lg hover:scale-105 active:scale-95 transition-all">+</button>
       </div>
     </header>
   );

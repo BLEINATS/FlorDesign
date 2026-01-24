@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Project } from '../types';
 import ProjectCard from './ProjectCard';
@@ -11,26 +12,33 @@ interface ProjectsScreenProps {
 
 const ProjectsScreen: React.FC<ProjectsScreenProps> = ({ projects, onViewProject, onDeleteProject, onNewProject }) => {
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="flex-1 flex flex-col pt-24 px-6 pb-12 animate-slide-up">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-4xl font-serif text-pink-800">Meus Projetos</h2>
+        <h2 className="text-3xl font-serif font-bold text-luxury-slate">Meus Projetos</h2>
         <button
             onClick={onNewProject}
-            className="px-4 py-2 bg-pink-600 text-white font-medium rounded-md hover:bg-pink-700 transition-colors"
+            className="w-10 h-10 bg-luxury-rose text-white rounded-full shadow-lg flex items-center justify-center font-bold"
         >
-            + Novo Projeto
+            +
         </button>
       </div>
+      
       {projects.length === 0 ? (
-        <div className="text-center py-16 px-6 bg-rose-50 rounded-lg">
-          <span className="text-5xl">🖼️</span>
-          <h3 className="mt-4 text-2xl font-semibold text-pink-800">Nenhum projeto salvo ainda</h3>
-          <p className="mt-2 text-gray-600">
-            Clique em "+ Novo Projeto" para começar a criar sua primeira obra de arte floral com IA.
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-12 bg-white rounded-[40px] border border-black/5">
+          <span className="text-5xl mb-6">🌸</span>
+          <h3 className="text-xl font-serif font-bold text-luxury-slate mb-2">Sua galeria está vazia</h3>
+          <p className="text-sm text-slate-400 font-light leading-relaxed mb-8">
+            Comece um novo projeto para visualizar suas criações aqui.
           </p>
+          <button
+            onClick={onNewProject}
+            className="px-8 py-3 bg-luxury-gold text-white rounded-full font-bold uppercase tracking-widest text-[10px]"
+          >
+            Criar Primeiro Design
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 gap-4">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}
