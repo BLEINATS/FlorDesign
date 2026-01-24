@@ -22,4 +22,4 @@ export interface Project {
   createdAt: string; // ISO string date
 }
 
-export type Screen = 'landing' | 'upload' | 'edit' | 'result' | 'projects' | 'projectDetail';
+export type Screen = 'landing' | 'upload' | 'choice' | 'edit' | 'result' | 'projects' | 'projectDetail';

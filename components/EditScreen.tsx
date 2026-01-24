@@ -21,14 +21,15 @@ const DEFAULT_FOLIAGE = ['Eucalipto', 'Samambaia', 'Costela de Adão', 'Ruscus']
 
 interface Props {
   originalImage: ImageData;
-  onGenerate: (config: EditConfig) => void;
+  onGenerate: (prompt: string, mode: EditMode, isHighQuality: boolean) => void;
+  onGetInspiration: (img: ImageData) => Promise<string | undefined>;
   isLoading: boolean;
   error: string | null;
   onRestart: () => void;
   onSave: () => void;
 }
 
-const EditScreen: React.FC<Props> = ({ originalImage, onGenerate, isLoading, error, onRestart, onSave }) => {
+const EditScreen: React.FC<Props> = ({ originalImage, onGenerate, onGetInspiration, isLoading, error, onRestart, onSave }) => {
   const [activeMode, setActiveMode] = useState<EditMode>('edit');
   const [customPrompt, setCustomPrompt] = useState('');
   
@@ -159,7 +160,6 @@ const EditScreen: React.FC<Props> = ({ originalImage, onGenerate, isLoading, err
     if (ctx) ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
   };
 
-  // Added toggleFoliage function to handle selecting/deselecting foliages.
   const toggleFoliage = (foliage: string) => {
     setSelectedFoliage(prev => 
       prev.includes(foliage) ? prev.filter(f => f !== foliage) : [...prev, foliage]
@@ -406,7 +406,7 @@ const EditScreen: React.FC<Props> = ({ originalImage, onGenerate, isLoading, err
                 if (customColorHex) finalPrompt += ` Cor (HEX): ${customColorHex}.`;
                 else if (selectedColor) finalPrompt += ` Cor: ${selectedColor}.`;
                 if (selectedFoliage.length > 0) finalPrompt += ` Folhagens: ${selectedFoliage.join(', ')}.`;
-                onGenerate({ prompt: finalPrompt || "Design floral profissional", mode: 'edit', isHighQuality: true, fidelityLevel: 'balanced' });
+                onGenerate(finalPrompt || "Design floral profissional", activeMode, true);
               }}
               disabled={isLoading}
               className="w-full h-20 bg-primary text-[#102216] rounded-[32px] font-black uppercase tracking-[0.25em] text-xs flex items-center justify-center gap-4 shadow-[0_25px_70px_rgba(19,236,91,0.2)] active:scale-95 transition-all disabled:opacity-50"

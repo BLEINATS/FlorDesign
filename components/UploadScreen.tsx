@@ -2,13 +2,17 @@
 import React from 'react';
 import { ImageData, Project } from '../types';
 
+// Fix: Added missing isLoading and onNewProject props to satisfy type requirements in App.tsx
 interface Props {
   onImageUpload: (data: ImageData) => void;
   projects: Project[];
   onViewProject: (id?: string) => void;
+  // Missing props identified from App.tsx usage
+  isLoading: boolean;
+  onNewProject: () => void;
 }
 
-const UploadScreen: React.FC<Props> = ({ onImageUpload, projects, onViewProject }) => {
+const UploadScreen: React.FC<Props> = ({ onImageUpload, projects, onViewProject, isLoading, onNewProject }) => {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -42,6 +46,14 @@ const UploadScreen: React.FC<Props> = ({ onImageUpload, projects, onViewProject 
           <p className="text-lg font-bold text-white tracking-tight">Escolher da Galeria</p>
           <p className="text-[9px] text-text-secondary font-black uppercase tracking-[0.4em] mt-2 opacity-60">Toque para selecionar</p>
         </div>
+
+        {/* Fix: Added visual feedback for isLoading state */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
+            <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Processando...</p>
+          </div>
+        )}
       </label>
 
       {projects.length > 0 && (
