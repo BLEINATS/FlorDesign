@@ -2,13 +2,14 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { Project, EditMode, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Language } from '../translations';
+import ResetDataModal from './ResetDataModal'; // Importando o novo modal
 
 interface ProfileScreenProps {
   projects: Project[];
   onNavigateToHome: () => void;
   onNavigateToProjects: () => void;
   onNewProject: (mode?: EditMode) => void;
-  onNavigateToCatalog: () => void; // Novo
+  onNavigateToCatalog: () => void;
   user: User | null;
   onUpdateUser: (data: Partial<User>) => void;
   onLogout: () => void;
@@ -27,12 +28,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onLogout
 }) => {
   const { t, language, setLanguage } = useLanguage();
-  // ... (resto do componente mantido igual)
   const [showSettings, setShowSettings] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
   // Modal State
   const [activeModal, setActiveModal] = useState<ModalType>(null);
+  const [showResetModal, setShowResetModal] = useState(false); // Estado para o modal de reset
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form States
@@ -105,6 +106,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
       showToast(notificationsEnabled ? "Notificações desativadas." : "Notificações ativadas.");
   };
 
+  const handleResetData = () => {
+      localStorage.removeItem('flora-design-projects');
+      // Limpa outros dados se necessário, mas mantém login se quiser
+      // localStorage.clear(); // Cuidado, isso desloga o usuário
+      window.location.reload();
+  };
+
   const getLanguageLabel = (lang: Language) => {
       switch(lang) {
           case 'pt': return 'Português (Brasil)';
@@ -123,6 +131,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <span className="text-xs font-bold uppercase tracking-wide">{toastMessage}</span>
           </div>
       )}
+
+      {/* NOVO MODAL DE RESET */}
+      <ResetDataModal 
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        onConfirm={handleResetData}
+      />
 
       <div className="flex items-center justify-between p-6 pt-safe-top bg-[#102216]/90 backdrop-blur-md sticky top-0 z-30 border-b border-white/5">
         <h2 className="text-lg font-bold tracking-tight text-white">{t('prof_title')}</h2>
@@ -193,12 +208,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </button>
 
              <button 
-                onClick={() => {
-                    if(confirm('Tem certeza que deseja limpar todos os projetos salvos?')) {
-                        localStorage.removeItem('flora-design-projects');
-                        window.location.reload();
-                    }
-                }}
+                onClick={() => setShowResetModal(true)} // Abre o modal personalizado
                 className="flex items-center gap-4 p-4 bg-[#1c271f] rounded-2xl border border-white/5 hover:bg-red-900/20 active:scale-[0.98] transition-all group mt-4"
             >
                 <div className="size-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
