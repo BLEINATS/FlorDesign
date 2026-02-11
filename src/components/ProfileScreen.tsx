@@ -2,7 +2,8 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { Project, EditMode, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Language } from '../translations';
-import ResetDataModal from './ResetDataModal'; // Importando o novo modal
+import ResetDataModal from './ResetDataModal';
+import { TERMS_OF_USE } from '../data/termsOfUse'; // Importando os termos
 
 interface ProfileScreenProps {
   projects: Project[];
@@ -33,7 +34,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
   
   // Modal State
   const [activeModal, setActiveModal] = useState<ModalType>(null);
-  const [showResetModal, setShowResetModal] = useState(false); // Estado para o modal de reset
+  const [showResetModal, setShowResetModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form States
@@ -108,8 +109,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   const handleResetData = () => {
       localStorage.removeItem('flora-design-projects');
-      // Limpa outros dados se necessário, mas mantém login se quiser
-      // localStorage.clear(); // Cuidado, isso desloga o usuário
       window.location.reload();
   };
 
@@ -132,7 +131,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </div>
       )}
 
-      {/* NOVO MODAL DE RESET */}
       <ResetDataModal 
         isOpen={showResetModal}
         onClose={() => setShowResetModal(false)}
@@ -208,7 +206,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </button>
 
              <button 
-                onClick={() => setShowResetModal(true)} // Abre o modal personalizado
+                onClick={() => setShowResetModal(true)}
                 className="flex items-center gap-4 p-4 bg-[#1c271f] rounded-2xl border border-white/5 hover:bg-red-900/20 active:scale-[0.98] transition-all group mt-4"
             >
                 <div className="size-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
@@ -329,10 +327,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       )}
 
-      {/* MODAL CONTENT (Mantido igual) */}
+      {/* MODAL CONTENT */}
       {activeModal && (
           <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
-              <div className="bg-[#1c271f] border border-white/10 rounded-[32px] w-full max-w-sm p-6 shadow-2xl animate-slide-up">
+              <div className="bg-[#1c271f] border border-white/10 rounded-[32px] w-full max-w-sm p-6 shadow-2xl animate-slide-up max-h-[85vh] flex flex-col">
                   
                   {activeModal === 'language' && (
                       <>
@@ -430,21 +428,26 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   {activeModal === 'help' && (
                       <>
                         <h3 className="text-xl font-bold text-white mb-4 text-center">{t('prof_help')}</h3>
-                        <div className="text-white/70 text-sm space-y-4 mb-6 max-h-60 overflow-y-auto">
-                            <p><strong>FAQ</strong></p>
-                            <p>Use o Studio IA para criar.</p>
+                        <div className="text-white/70 text-sm space-y-4 mb-6 overflow-y-auto pr-2">
+                            <p><strong>Como usar o Studio IA?</strong><br/>Carregue uma foto, use o pincel para marcar a área que deseja alterar e descreva sua ideia (ex: "Rosas vermelhas").</p>
+                            <p><strong>O que é Humanização?</strong><br/>Transforma esboços ou modelos 3D simples em imagens fotorrealistas de alta qualidade.</p>
                         </div>
-                        <button onClick={() => setActiveModal(null)} className="w-full h-12 rounded-xl bg-white/5 text-white font-bold uppercase text-xs hover:bg-white/10">Fechar</button>
+                        <button onClick={() => setActiveModal(null)} className="w-full h-12 rounded-xl bg-white/5 text-white font-bold uppercase text-xs hover:bg-white/10 mt-auto">Fechar</button>
                       </>
                   )}
 
                   {activeModal === 'terms' && (
                       <>
                         <h3 className="text-xl font-bold text-white mb-4 text-center">{t('prof_terms')}</h3>
-                        <div className="text-white/70 text-sm space-y-4 mb-6 max-h-60 overflow-y-auto text-justify">
-                            <p>FloraDesign AI...</p>
+                        <div className="text-white/70 text-sm space-y-6 mb-6 overflow-y-auto pr-2 text-left">
+                            {TERMS_OF_USE.map((term, index) => (
+                                <div key={index}>
+                                    <h4 className="text-white font-bold mb-1">{term.title}</h4>
+                                    <p className="text-xs leading-relaxed">{term.content}</p>
+                                </div>
+                            ))}
                         </div>
-                        <button onClick={() => setActiveModal(null)} className="w-full h-12 rounded-xl bg-white/5 text-white font-bold uppercase text-xs hover:bg-white/10">Entendi</button>
+                        <button onClick={() => setActiveModal(null)} className="w-full h-12 rounded-xl bg-[#13ec5b] text-[#102216] font-bold uppercase text-xs hover:bg-[#13ec5b]/90 mt-auto shadow-lg">Li e Concordo</button>
                       </>
                   )}
 

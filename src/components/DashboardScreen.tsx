@@ -28,7 +28,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNavigateToLanding,
   onNavigateToCatalog
 }) => {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   
   // Imagem de folha para o fundo do card (Monstera escura/elegante)
   const leafImage = "https://images.unsplash.com/photo-1533038590840-1cde6e668a91?auto=format&fit=crop&q=80&w=800";
@@ -40,6 +40,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
     { id: '2', title: 'Dica Pro', message: 'Use o modo Humanização para renderizações 3D realistas.', time: '2h atrás', type: 'info', read: false },
     { id: '3', title: 'Atualização', message: 'Novas espécies de Orquídeas adicionadas ao catálogo.', time: '1d atrás', type: 'success', read: true },
   ]);
+
+  // --- LANGUAGE MENU STATE ---
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -66,24 +69,53 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({
             </span>
         </button>
         
-        <button 
-            onClick={onOpenStore}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#13ec5b]/10 border border-[#13ec5b]/30 active:scale-95 transition-all"
-        >
-            <span className="material-symbols-outlined text-[#13ec5b] text-[18px]">token</span>
-            <span className="text-xs font-bold text-[#13ec5b]">{credits}</span>
-            <span className="material-symbols-outlined text-[#13ec5b] text-[14px] ml-1 bg-[#13ec5b]/20 rounded-full">add</span>
-        </button>
+        <div className="flex items-center gap-3">
+            <button 
+                onClick={onOpenStore}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#13ec5b]/10 border border-[#13ec5b]/30 active:scale-95 transition-all"
+            >
+                <span className="material-symbols-outlined text-[#13ec5b] text-[18px]">token</span>
+                <span className="text-xs font-bold text-[#13ec5b]">{credits}</span>
+                <span className="material-symbols-outlined text-[#13ec5b] text-[14px] ml-1 bg-[#13ec5b]/20 rounded-full">add</span>
+            </button>
 
-        <button 
-            onClick={handleOpenNotifications}
-            className="size-10 flex items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-colors relative active:scale-90"
-        >
-           <span className="material-symbols-outlined text-xl">notifications</span>
-           {unreadCount > 0 && (
-             <span className="absolute top-2 right-2 size-2.5 bg-red-500 rounded-full border-2 border-[#102216] animate-pulse"></span>
-           )}
-        </button>
+            {/* Language Selector */}
+            <div className="relative">
+                <button 
+                    onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                    className="size-10 flex items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-colors active:scale-90 border border-white/5"
+                >
+                    <span className="material-symbols-outlined text-xl">language</span>
+                </button>
+                
+                {showLanguageMenu && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowLanguageMenu(false)} />
+                        <div className="absolute top-12 right-0 bg-[#1c271f] border border-white/10 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] p-2 w-36 z-50 flex flex-col gap-1 animate-fade-in overflow-hidden">
+                            <button onClick={() => { setLanguage('pt'); setShowLanguageMenu(false); }} className={`px-4 py-3 rounded-xl text-xs font-bold text-left hover:bg-white/5 flex items-center gap-3 transition-colors ${language === 'pt' ? 'bg-[#13ec5b]/10 text-[#13ec5b]' : 'text-white/70'}`}>
+                                <span className="text-base">🇧🇷</span> Português
+                            </button>
+                            <button onClick={() => { setLanguage('en'); setShowLanguageMenu(false); }} className={`px-4 py-3 rounded-xl text-xs font-bold text-left hover:bg-white/5 flex items-center gap-3 transition-colors ${language === 'en' ? 'bg-[#13ec5b]/10 text-[#13ec5b]' : 'text-white/70'}`}>
+                                <span className="text-base">🇺🇸</span> English
+                            </button>
+                            <button onClick={() => { setLanguage('es'); setShowLanguageMenu(false); }} className={`px-4 py-3 rounded-xl text-xs font-bold text-left hover:bg-white/5 flex items-center gap-3 transition-colors ${language === 'es' ? 'bg-[#13ec5b]/10 text-[#13ec5b]' : 'text-white/70'}`}>
+                                <span className="text-base">🇪🇸</span> Español
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <button 
+                onClick={handleOpenNotifications}
+                className="size-10 flex items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-colors relative active:scale-90"
+            >
+            <span className="material-symbols-outlined text-xl">notifications</span>
+            {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 size-2.5 bg-red-500 rounded-full border-2 border-[#102216] animate-pulse"></span>
+            )}
+            </button>
+        </div>
       </div>
 
       <main className="flex-1 overflow-y-auto pb-32 no-scrollbar">

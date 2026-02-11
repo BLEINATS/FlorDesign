@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ImageData, EditMode } from '../types';
 

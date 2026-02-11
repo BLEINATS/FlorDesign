@@ -1,4 +1,3 @@
-
 // FIX: Added React import to fix 'Cannot find namespace React' error on the return type definition.
 import React, { useState, useEffect } from 'react';
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ImageData, EditConfig, EditMode } from '../types';
 import { describeImage } from '../services/geminiService';

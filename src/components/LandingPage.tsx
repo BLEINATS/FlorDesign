@@ -1,9 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { TERMS_OF_USE } from '../data/termsOfUse'; // Importando os termos
 
 const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const [sliderPos, setSliderPos] = useState(50);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false); // Estado para o modal de termos
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMove = (clientX: number) => {
@@ -24,6 +27,35 @@ const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
   return (
     <div className="flex-1 flex flex-col bg-[#050806] relative h-[100dvh] overflow-hidden font-display">
       
+      {/* Language Selector - Floating Top Right */}
+      <div className="absolute top-6 right-6 z-50">
+        <div className="relative">
+            <button 
+                onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                className="size-10 flex items-center justify-center rounded-full bg-white/5 text-white hover:bg-white/10 transition-colors active:scale-90 border border-white/5 backdrop-blur-md shadow-lg"
+            >
+                <span className="material-symbols-outlined text-xl">language</span>
+            </button>
+            
+            {showLanguageMenu && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowLanguageMenu(false)} />
+                    <div className="absolute top-12 right-0 bg-[#1c271f] border border-white/10 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] p-2 w-36 z-50 flex flex-col gap-1 animate-fade-in overflow-hidden backdrop-blur-xl">
+                        <button onClick={() => { setLanguage('pt'); setShowLanguageMenu(false); }} className={`px-4 py-3 rounded-xl text-xs font-bold text-left hover:bg-white/5 flex items-center gap-3 transition-colors ${language === 'pt' ? 'bg-[#13ec5b]/10 text-[#13ec5b]' : 'text-white/70'}`}>
+                            <span className="text-base">🇧🇷</span> Português
+                        </button>
+                        <button onClick={() => { setLanguage('en'); setShowLanguageMenu(false); }} className={`px-4 py-3 rounded-xl text-xs font-bold text-left hover:bg-white/5 flex items-center gap-3 transition-colors ${language === 'en' ? 'bg-[#13ec5b]/10 text-[#13ec5b]' : 'text-white/70'}`}>
+                            <span className="text-base">🇺🇸</span> English
+                        </button>
+                        <button onClick={() => { setLanguage('es'); setShowLanguageMenu(false); }} className={`px-4 py-3 rounded-xl text-xs font-bold text-left hover:bg-white/5 flex items-center gap-3 transition-colors ${language === 'es' ? 'bg-[#13ec5b]/10 text-[#13ec5b]' : 'text-white/70'}`}>
+                            <span className="text-base">🇪🇸</span> Español
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+      </div>
+
       {/* Background Effects */}
       <div className="absolute top-0 left-0 w-full h-[40vh] bg-gradient-to-b from-[#13ec5b]/10 to-transparent pointer-events-none" />
       <div className="absolute top-[-20%] right-[-20%] w-[80vw] h-[80vw] bg-[#13ec5b]/5 rounded-full blur-[100px] pointer-events-none" />
@@ -47,7 +79,6 @@ const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
             </span>
           </h1>
           
-          {/* FIX: Removido line-clamp-2 e aumentado max-w para exibir texto completo */}
           <p className="text-white/60 font-medium text-[10px] uppercase tracking-widest max-w-sm mx-auto leading-relaxed">
             {t('landing_subtitle')}
           </p>
@@ -104,7 +135,7 @@ const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
         <div className="w-full px-8 pb-8 flex flex-col items-center shrink-0 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <button
             onClick={onStart}
-            className="w-full max-w-[320px] h-[56px] bg-[#13ec5b] text-[#050806] rounded-[20px] shadow-[0_0_40px_rgba(19,236,91,0.3)] hover:shadow-[0_0_60px_rgba(19,236,91,0.5)] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 group relative overflow-hidden"
+            className="w-full max-w-[320px] h-[56px] bg-[#13ec5b] text-[#050806] rounded-[20px] shadow-[0_0_40px_rgba(19,236,91,0.3)] hover:shadow-[0_0_60px_rgba(19,236,91,0.5)] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 group relative overflow-hidden mb-6"
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 rounded-[20px]" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] whitespace-nowrap relative z-10">
@@ -112,13 +143,41 @@ const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
             </span>
             <span className="material-symbols-outlined text-lg relative z-10 group-hover:translate-x-1 transition-transform">arrow_forward</span>
           </button>
+
+          {/* Footer Link para Termos */}
+          <button 
+            onClick={() => setShowTermsModal(true)}
+            className="text-[9px] text-white/30 font-bold uppercase tracking-widest hover:text-white transition-colors"
+          >
+            Termos de Uso & Privacidade
+          </button>
         </div>
 
       </div>
 
+      {/* MODAL DE TERMOS (Cópia do ProfileScreen para consistência) */}
+      {showTermsModal && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+              <div className="bg-[#1c271f] border border-white/10 rounded-[32px] w-full max-w-sm p-6 shadow-2xl animate-slide-up max-h-[85vh] flex flex-col">
+                  <h3 className="text-xl font-bold text-white mb-4 text-center">{t('prof_terms')}</h3>
+                  <div className="text-white/70 text-sm space-y-6 mb-6 overflow-y-auto pr-2 text-left">
+                      {TERMS_OF_USE.map((term, index) => (
+                          <div key={index}>
+                              <h4 className="text-white font-bold mb-1">{term.title}</h4>
+                              <p className="text-xs leading-relaxed">{term.content}</p>
+                          </div>
+                      ))}
+                  </div>
+                  <button onClick={() => setShowTermsModal(false)} className="w-full h-12 rounded-xl bg-[#13ec5b] text-[#102216] font-bold uppercase text-xs hover:bg-[#13ec5b]/90 mt-auto shadow-lg">Fechar</button>
+              </div>
+          </div>
+      )}
+
       <style>{`
         .pt-safe-top { padding-top: max(1.5rem, env(safe-area-inset-top)); }
         .pb-safe-bottom { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+        @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in { animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
       `}</style>
     </div>
   );

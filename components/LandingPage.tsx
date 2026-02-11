@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 
 const LandingPage: React.FC<{ onStart: () => void }> = ({ onStart }) => {
